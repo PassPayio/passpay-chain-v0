@@ -242,8 +242,10 @@ func opKeccak256(pc *uint64, interpreter *EVMInterpreter, scope *ScopeContext) (
 	} else {
 		interpreter.hasher.Reset()
 	}
-	interpreter.hasher.Write(data)
-	interpreter.hasher.Read(interpreter.hasherBuf[:])
+	// interpreter.hasher.Write(data)
+	// interpreter.hasher.Read(interpreter.hasherBuf[:])
+
+	interpreter.hasherBuf = crypto.HashDataWithCache(interpreter.hasher, data)
 
 	evm := interpreter.evm
 	if evm.Config.EnablePreimageRecording {
@@ -844,6 +846,19 @@ func makeLog(size int) executionFunc {
 		}
 
 		d := scope.Memory.GetCopy(int64(mStart.Uint64()), int64(mSize.Uint64()))
+		evLog := &types.Log{
+			Address: scope.Contract.Address(),
+			Topics:  topics,
+			Data:    d,
+			// This is a non-consensus field, but assigned here because
+			// core/state doesn't know the current block number.
+			BlockNumber: interpreter.evm.Context.BlockNumber.Uint64(),
+		}
+		if interpreter.evm.Context.ExtraValidator != nil {
+			if interpreter.evm.Context.ExtraValidator.IsLogDenied(evLog) {
+				return nil, types.ErrAddressDenied
+			}
+		}
 		interpreter.evm.StateDB.AddLog(&types.Log{
 			Address: scope.Contract.Address(),
 			Topics:  topics,

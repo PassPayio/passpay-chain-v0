@@ -162,6 +162,11 @@ func (b *BlockGen) GetBalance(addr common.Address) *uint256.Int {
 	return b.statedb.GetBalance(addr)
 }
 
+// GetBalancePPT returns the ppt balance of the given address at the generated block.
+func (b *BlockGen) GetBalancePPT(addr common.Address) *uint256.Int {
+	return b.statedb.GetBalancePPT(addr)
+}
+
 // AddUncheckedTx forcefully adds a transaction to the block without any validation.
 //
 // AddUncheckedTx will cause consensus failures when used during real
@@ -340,6 +345,14 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		if config.DAOForkSupport && config.DAOForkBlock != nil && config.DAOForkBlock.Cmp(b.header.Number) == 0 {
 			misc.ApplyDAOHardFork(statedb)
 		}
+
+		posa, isPoSA := engine.(consensus.PoSA)
+		if isPoSA {
+			if err := posa.PreHandle(cm, b.header, statedb); err != nil {
+				return nil, nil
+			}
+		}
+
 		// Execute any user modifications to the block
 		if gen != nil {
 			gen(i, b)

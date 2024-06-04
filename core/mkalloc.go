@@ -39,9 +39,10 @@ import (
 )
 
 type allocItem struct {
-	Addr    *big.Int
-	Balance *big.Int
-	Misc    *allocItemMisc `rlp:"optional"`
+	Addr       *big.Int
+	Balance    *big.Int
+	BalancePPT *big.Int
+	Misc       *allocItemMisc `rlp:"optional"`
 }
 
 type allocItemMisc struct {
@@ -73,7 +74,7 @@ func makelist(g *core.Genesis) []allocItem {
 			})
 		}
 		bigAddr := new(big.Int).SetBytes(addr.Bytes())
-		items = append(items, allocItem{bigAddr, account.Balance, misc})
+		items = append(items, allocItem{bigAddr, account.Balance, account.BalancePPT, misc})
 	}
 	slices.SortFunc(items, func(a, b allocItem) int {
 		return a.Addr.Cmp(b.Addr)

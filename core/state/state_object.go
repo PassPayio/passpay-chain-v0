@@ -31,6 +31,8 @@ import (
 	"github.com/holiman/uint256"
 )
 
+var emptyCodeHash = crypto.Keccak256(nil)
+
 type Code []byte
 
 func (c Code) String() string {
@@ -89,6 +91,15 @@ type stateObject struct {
 
 	// Flag whether the object was created in the current transaction
 	created bool
+
+	// only used between StateDB.preUpdateStateObject and StateDB.updateStateObject
+	accountRLP     []byte
+	rlpErr         error
+	slimAccountRLP []byte
+
+	// only used between updateTrieConcurrencySafe and updateSnapshot
+	snapStorage map[common.Hash][]byte
+	usedStorage [][]byte
 }
 
 // empty returns whether the account is considered empty.
@@ -102,13 +113,14 @@ func newObject(db *StateDB, address common.Address, acct *types.StateAccount) *s
 		origin  = acct
 		created = acct == nil // true if the account was not existent
 	)
+
 	if acct == nil {
 		acct = types.NewEmptyStateAccount()
 	}
 	return &stateObject{
 		db:             db,
 		address:        address,
-		addrHash:       crypto.Keccak256Hash(address[:]),
+		addrHash:       crypto.HashDataWithCache(nil, address[:]),
 		origin:         origin,
 		data:           *acct,
 		originStorage:  make(Storage),
@@ -196,7 +208,7 @@ func (s *stateObject) GetCommittedState(key common.Hash) common.Hash {
 	)
 	if s.db.snap != nil {
 		start := time.Now()
-		enc, err = s.db.snap.Storage(s.addrHash, crypto.Keccak256Hash(key.Bytes()))
+		enc, err = s.db.snap.Storage(s.addrHash, crypto.HashDataWithCache(nil, key[:]))
 		if metrics.EnabledExpensive {
 			s.db.SnapshotStorageReads += time.Since(start)
 		}
@@ -268,15 +280,7 @@ func (s *stateObject) finalise(prefetch bool) {
 	}
 }
 
-// updateTrie is responsible for persisting cached storage changes into the
-// object's storage trie. In case the storage trie is not yet loaded, this
-// function will load the trie automatically. If any issues arise during the
-// loading or updating of the trie, an error will be returned. Furthermore,
-// this function will return the mutated storage trie, or nil if there is no
-// storage change at all.
-func (s *stateObject) updateTrie() (Trie, error) {
-	// Make sure all dirty slots are finalized into the pending storage area
-	s.finalise(false)
+func (s *stateObject) updateTrieConcurrencySafe() (Trie, error) {
 
 	// Short circuit if nothing changed, don't bother with hashing anything
 	if len(s.pendingStorage) == 0 {
@@ -330,7 +334,7 @@ func (s *stateObject) updateTrie() (Trie, error) {
 				s.db.storages[s.addrHash] = storage
 			}
 		}
-		khash := crypto.HashData(s.db.hasher, key[:])
+		khash := crypto.HashDataWithCache(s.db.hasher, key[:])
 		storage[khash] = encoded // encoded will be nil if it's deleted
 
 		// Cache the original value of mutated storage slots
@@ -353,10 +357,42 @@ func (s *stateObject) updateTrie() (Trie, error) {
 		// Cache the items for preloading
 		usedStorage = append(usedStorage, common.CopyBytes(key[:])) // Copy needed for closure
 	}
-	if s.db.prefetcher != nil {
-		s.db.prefetcher.used(s.addrHash, s.data.Root, usedStorage)
+	s.snapStorage = storage
+	s.usedStorage = usedStorage
+
+	if len(s.pendingStorage) > 0 {
+		s.pendingStorage = make(Storage)
 	}
-	s.pendingStorage = make(Storage) // reset pending map
+
+	return tr, nil
+}
+
+// update s.db.snapStorage and s.db.prefetcher.used
+func (s *stateObject) updateSnapshot() {
+	if s.db.prefetcher != nil {
+		s.db.prefetcher.used(s.addrHash, s.data.Root, s.usedStorage)
+	}
+}
+
+// updateTrie is responsible for persisting cached storage changes into the
+// object's storage trie. In case the storage trie is not yet loaded, this
+// function will load the trie automatically. If any issues arise during the
+// loading or updating of the trie, an error will be returned. Furthermore,
+// this function will return the mutated storage trie, or nil if there is no
+// storage change at all.
+func (s *stateObject) updateTrie() (Trie, error) {
+	// Make sure all dirty slots are finalized into the pending storage area
+	s.finalise(false)
+	// Track the amount of time wasted on updating the storage trie
+	if metrics.EnabledExpensive {
+		defer func(start time.Time) { s.db.StorageUpdates += time.Since(start) }(time.Now())
+	}
+	tr, err := s.updateTrieConcurrencySafe()
+	if err != nil {
+		return nil, err
+	}
+
+	s.updateSnapshot()
 	return tr, nil
 }
 
@@ -417,6 +453,20 @@ func (s *stateObject) AddBalance(amount *uint256.Int) {
 	s.SetBalance(new(uint256.Int).Add(s.Balance(), amount))
 }
 
+// AddBalancePPT adds amount to s's ppt balance.
+// It is used to add funds to the destination account of a transfer.
+func (s *stateObject) AddBalancePPT(amount *uint256.Int) {
+	// EIP161: We must check emptiness for the objects such that the account
+	// clearing (0,0,0 objects) can take effect.
+	if amount.Sign() == 0 {
+		if s.empty() {
+			s.touch()
+		}
+		return
+	}
+	s.SetBalancePPT(new(uint256.Int).Add(s.BalancePPT(), amount))
+}
+
 // SubBalance removes amount from s's balance.
 // It is used to remove funds from the origin account of a transfer.
 func (s *stateObject) SubBalance(amount *uint256.Int) {
@@ -424,6 +474,22 @@ func (s *stateObject) SubBalance(amount *uint256.Int) {
 		return
 	}
 	s.SetBalance(new(uint256.Int).Sub(s.Balance(), amount))
+}
+
+// SubBalancePPT removes amount from s's ppt balance.
+// It is used to remove funds from the origin account of a transfer.
+func (s *stateObject) SubBalancePPT(amount *uint256.Int) {
+	// We must check emptiness for the objects such that the account
+	// clearing (0,0,0 objects) can take effect.
+	// It may happen because the Ppos engine will interact with some system-contract by evm Call,
+	// and the `from` account may be empty.
+	if amount.Sign() == 0 {
+		if s.empty() {
+			s.touch()
+		}
+		return
+	}
+	s.SetBalancePPT(new(uint256.Int).Sub(s.BalancePPT(), amount))
 }
 
 func (s *stateObject) SetBalance(amount *uint256.Int) {
@@ -434,8 +500,20 @@ func (s *stateObject) SetBalance(amount *uint256.Int) {
 	s.setBalance(amount)
 }
 
+func (s *stateObject) SetBalancePPT(amount *uint256.Int) {
+	s.db.journal.append(pptBalanceChange{
+		account: &s.address,
+		prev:    new(uint256.Int).Set(s.data.BalancePPT),
+	})
+	s.setBalancePPT(amount)
+}
+
 func (s *stateObject) setBalance(amount *uint256.Int) {
 	s.data.Balance = amount
+}
+
+func (s *stateObject) setBalancePPT(amount *uint256.Int) {
+	s.data.BalancePPT = amount
 }
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
@@ -537,10 +615,38 @@ func (s *stateObject) Balance() *uint256.Int {
 	return s.data.Balance
 }
 
+func (s *stateObject) BalancePPT() *uint256.Int {
+	return s.data.BalancePPT
+}
+
 func (s *stateObject) Nonce() uint64 {
 	return s.data.Nonce
 }
 
 func (s *stateObject) Root() common.Hash {
 	return s.data.Root
+}
+
+func (s *stateObject) erase() {
+	prevcode := s.Code()
+	s.db.journal.append(eraseChange{
+		account:  &s.address,
+		prevhash: s.CodeHash(),
+		prevcode: prevcode,
+		prevroot: s.data.Root,
+	})
+
+	s.code = []byte{}
+	s.data.CodeHash = emptyCodeHash
+	s.data.Root = emptyRoot
+	s.trie = nil
+	s.dirtyCode = true
+}
+
+func (s *stateObject) revertErase(codeHash common.Hash, code []byte, root common.Hash) {
+	s.code = code
+	s.data.CodeHash = codeHash[:]
+	s.data.Root = root
+	s.getTrie()
+	s.dirtyCode = true
 }
