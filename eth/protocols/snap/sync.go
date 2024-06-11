@@ -840,9 +840,9 @@ func (s *Syncer) loadSyncStatus() {
 	var next common.Hash
 	step := new(big.Int).Sub(
 		new(big.Int).Div(
-			new(big.Int).Exp(common.Big2, common.Big256, nil),
+			new(big.Int).Exp(common.Big2.ToBig(), common.Big256.ToBig(), nil),
 			big.NewInt(int64(accountConcurrency)),
-		), common.Big1,
+		), common.Big1.ToBig(),
 	)
 	for i := 0; i < accountConcurrency; i++ {
 		last := common.BigToHash(new(big.Int).Add(next.Big(), step))
@@ -872,7 +872,7 @@ func (s *Syncer) loadSyncStatus() {
 			genTrie:        tr,
 		})
 		log.Debug("Created account sync task", "from", next, "last", last)
-		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1))
+		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1.ToBig()))
 	}
 }
 
@@ -3073,7 +3073,7 @@ func (s *Syncer) onHealState(paths [][]byte, value []byte) error {
 }
 
 // hashSpace is the total size of the 256 bit hash space for accounts.
-var hashSpace = new(big.Int).Exp(common.Big2, common.Big256, nil)
+var hashSpace = new(big.Int).Exp(common.Big2.ToBig(), common.Big256.ToBig(), nil)
 
 // report calculates various status reports and provides it to the user.
 func (s *Syncer) report(force bool) {

@@ -148,7 +148,7 @@ func GenerateBadBlock(parent *types.Block, engine consensus.Engine, txs types.Tr
 		Coinbase:   parent.Coinbase(),
 		Difficulty: difficulty,
 		GasLimit:   parent.GasLimit(),
-		Number:     new(big.Int).Add(parent.Number(), common.Big1),
+		Number:     new(big.Int).Add(parent.Number(), common.Big1.ToBig()),
 		Time:       parent.Time() + 10,
 		UncleHash:  types.EmptyUncleHash,
 	}

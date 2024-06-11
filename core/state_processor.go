@@ -213,9 +213,9 @@ func ProcessBeaconBlockRoot(beaconRoot common.Hash, vmenv *vm.EVM, statedb *stat
 	msg := &Message{
 		From:      params.SystemAddress,
 		GasLimit:  30_000_000,
-		GasPrice:  common.Big0,
-		GasFeeCap: common.Big0,
-		GasTipCap: common.Big0,
+		GasPrice:  common.Big0.ToBig(),
+		GasFeeCap: common.Big0.ToBig(),
+		GasTipCap: common.Big0.ToBig(),
 		To:        &params.BeaconRootsStorageAddress,
 		Data:      beaconRoot[:],
 	}

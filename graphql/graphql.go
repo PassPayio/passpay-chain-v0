@@ -769,7 +769,7 @@ func (b *Block) NextBaseFeePerGas(ctx context.Context) (*hexutil.Big, error) {
 	chaincfg := b.r.backend.ChainConfig()
 	if header.BaseFee == nil {
 		// Make sure next block doesn't enable EIP-1559
-		if !chaincfg.IsLondon(new(big.Int).Add(header.Number, common.Big1)) {
+		if !chaincfg.IsLondon(new(big.Int).Add(header.Number, common.Big1.ToBig())) {
 			return nil, nil
 		}
 	}

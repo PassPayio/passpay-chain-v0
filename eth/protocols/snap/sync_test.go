@@ -1547,9 +1547,9 @@ func makeBoundaryAccountTrie(scheme string, n int) (string, *trie.Trie, []*kv) {
 	var next common.Hash
 	step := new(big.Int).Sub(
 		new(big.Int).Div(
-			new(big.Int).Exp(common.Big2, common.Big256, nil),
+			new(big.Int).Exp(common.Big2.ToBig(), common.Big256.ToBig(), nil),
 			big.NewInt(int64(accountConcurrency)),
-		), common.Big1,
+		), common.Big1.ToBig(),
 	)
 	for i := 0; i < accountConcurrency; i++ {
 		last := common.BigToHash(new(big.Int).Add(next.Big(), step))
@@ -1557,7 +1557,7 @@ func makeBoundaryAccountTrie(scheme string, n int) (string, *trie.Trie, []*kv) {
 			last = common.MaxHash
 		}
 		boundaries = append(boundaries, last)
-		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1))
+		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1.ToBig()))
 	}
 	// Fill boundary accounts
 	for i := 0; i < len(boundaries); i++ {
@@ -1759,9 +1759,9 @@ func makeBoundaryStorageTrie(owner common.Hash, n int, db *triedb.Database) (com
 	var next common.Hash
 	step := new(big.Int).Sub(
 		new(big.Int).Div(
-			new(big.Int).Exp(common.Big2, common.Big256, nil),
+			new(big.Int).Exp(common.Big2.ToBig(), common.Big256.ToBig(), nil),
 			big.NewInt(int64(accountConcurrency)),
-		), common.Big1,
+		), common.Big1.ToBig(),
 	)
 	for i := 0; i < accountConcurrency; i++ {
 		last := common.BigToHash(new(big.Int).Add(next.Big(), step))
@@ -1769,7 +1769,7 @@ func makeBoundaryStorageTrie(owner common.Hash, n int, db *triedb.Database) (com
 			last = common.MaxHash
 		}
 		boundaries = append(boundaries, last)
-		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1))
+		next = common.BigToHash(new(big.Int).Add(last.Big(), common.Big1.ToBig()))
 	}
 	// Fill boundary slots
 	for i := 0; i < len(boundaries); i++ {

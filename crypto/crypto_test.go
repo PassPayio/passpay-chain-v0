@@ -230,9 +230,9 @@ func TestValidateSignatureValues(t *testing.T) {
 		}
 	}
 	minusOne := big.NewInt(-1)
-	one := common.Big1
-	zero := common.Big0
-	secp256k1nMinus1 := new(big.Int).Sub(secp256k1N, common.Big1)
+	one := common.Big1.ToBig()
+	zero := common.Big0.ToBig()
+	secp256k1nMinus1 := new(big.Int).Sub(secp256k1N, common.Big1.ToBig())
 
 	// correct v,r,s
 	check(true, 0, one, one)

@@ -3262,7 +3262,7 @@ func testEIP1559Transition(t *testing.T, scheme string) {
 		key2, _ = crypto.HexToECDSA("8a1f9a8f95be41cd7ccb6168179afb4504aefe388d1e14474d32c45c72ce7b7a")
 		addr1   = crypto.PubkeyToAddress(key1.PublicKey)
 		addr2   = crypto.PubkeyToAddress(key2.PublicKey)
-		funds   = new(big.Int).Mul(common.Big1, big.NewInt(params.Ether))
+		funds   = new(big.Int).Mul(common.Big1.ToBig(), big.NewInt(params.Ether))
 		config  = *params.AllEthashProtocolChanges
 		gspec   = &Genesis{
 			Config: &config,
@@ -3284,8 +3284,8 @@ func testEIP1559Transition(t *testing.T, scheme string) {
 		}
 	)
 
-	gspec.Config.BerlinBlock = common.Big0
-	gspec.Config.LondonBlock = common.Big0
+	gspec.Config.BerlinBlock = common.Big0.ToBig()
+	gspec.Config.LondonBlock = common.Big0.ToBig()
 	signer := types.LatestSigner(gspec.Config)
 
 	genDb, blocks, _ := GenerateChainWithGenesis(gspec, engine, 1, func(i int, b *BlockGen) {

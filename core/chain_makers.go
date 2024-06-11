@@ -438,7 +438,7 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 		Coinbase:   parent.Coinbase(),
 		Difficulty: engine.CalcDifficulty(cm, time, parent.Header()),
 		GasLimit:   parent.GasLimit(),
-		Number:     new(big.Int).Add(parent.Number(), common.Big1),
+		Number:     new(big.Int).Add(parent.Number(), common.Big1.ToBig()),
 		Time:       time,
 	}
 
