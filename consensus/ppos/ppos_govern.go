@@ -101,6 +101,8 @@ func (c *Ppos) finishProposalById(chain consensus.ChainHeaderReader, header *typ
 
 	msg := vmcaller.NewLegacyMessage(header.Coinbase, &systemcontract.SysGovContractAddr, 0, new(big.Int), math.MaxUint64, new(big.Int), data, false)
 
+	// st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
+
 	// execute message without a transaction
 	state.Prepare(common.Hash{}, 0)
 	_, err = vmcaller.ExecuteMsg(msg, state, header, newChainContext(chain, c), c.chainConfig)

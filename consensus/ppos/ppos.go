@@ -37,6 +37,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
 	"github.com/ethereum/go-ethereum/consensus/ppos/systemcontract"
 	"github.com/ethereum/go-ethereum/consensus/ppos/vmcaller"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -275,14 +276,14 @@ func (c *Ppos) Author(header *types.Header) (common.Address, error) {
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules.
-func (c *Ppos) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header, seal bool) error {
+func (c *Ppos) VerifyHeader(chain consensus.ChainHeaderReader, header *types.Header) error {
 	return c.verifyHeader(chain, header, nil)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers. The
 // method returns a quit channel to abort the operations and a results channel to
 // retrieve the async verifications (the order is that of the input slice).
-func (c *Ppos) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+func (c *Ppos) VerifyHeaders(chain consensus.ChainHeaderReader, headers []*types.Header) (chan<- struct{}, <-chan error) {
 	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 
@@ -396,7 +397,7 @@ func (c *Ppos) verifyCascadingFields(chain consensus.ChainHeaderReader, header *
 		if err := misc.VerifyGaslimit(parent.GasLimit, header.GasLimit); err != nil {
 			return err
 		}
-	} else if err := misc.VerifyEip1559Header(chain.Config(), parent, header); err != nil {
+	} else if err := eip1559.VerifyEIP1559Header(chain.Config(), parent, header); err != nil {
 		// Verify the header's EIP-1559 attributes.
 		return err
 	}
@@ -604,9 +605,9 @@ func (c *Ppos) Prepare(chain consensus.ChainHeaderReader, header *types.Header) 
 
 // Finalize implements consensus.Engine, ensuring no uncles are set, nor block
 // rewards given.
-func (c *Ppos) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs *[]*types.Transaction, uncles []*types.Header, receipts *[]*types.Receipt, systemTxs []*types.Transaction) error {
+func (c *Ppos) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs *[]*types.Transaction, uncles []*types.Header, _ []*types.Withdrawal, receipts *[]*types.Receipt, systemTxs []*types.Transaction) error {
 	// Initialize all system contracts at block 1.
-	if header.Number.Cmp(common.Big1) == 0 {
+	if header.Number.Cmp(common.Big1.ToBig()) == 0 {
 		if err := c.initializeSystemContracts(chain, header, state); err != nil {
 			log.Error("Initialize system contracts failed", "err", err)
 			return err
@@ -701,14 +702,14 @@ func (c *Ppos) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
 
 // FinalizeAndAssemble implements consensus.Engine, ensuring no uncles are set,
 // nor block rewards given, and returns the final block.
-func (c *Ppos) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (b *types.Block, rs []*types.Receipt, err error) {
+func (c *Ppos) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt, _ []*types.Withdrawal) (b *types.Block, rs []*types.Receipt, err error) {
 	defer func() {
 		if err != nil {
 			log.Warn("FinalizeAndAssemble failed", "err", err)
 		}
 	}()
 	// Initialize all system contracts at block 1.
-	if header.Number.Cmp(common.Big1) == 0 {
+	if header.Number.Cmp(common.Big1.ToBig()) == 0 {
 		if err := c.initializeSystemContracts(chain, header, state); err != nil {
 			panic(err)
 		}
@@ -804,7 +805,7 @@ func (c *Ppos) trySendBlockReward(chain consensus.ChainHeaderReader, header *typ
 	}
 
 	nonce := state.GetNonce(header.Coinbase)
-	msg := vmcaller.NewLegacyMessage(header.Coinbase, systemcontract.GetValidatorAddr(header.Number, c.chainConfig), nonce, fee, math.MaxUint64, new(big.Int), data, true)
+	msg := vmcaller.NewLegacyMessage(header.Coinbase, systemcontract.GetValidatorAddr(header.Number, c.chainConfig), nonce, fee.ToBig(), math.MaxUint64, new(big.Int), data, true)
 
 	if _, err := vmcaller.ExecuteMsg(msg, state, header, newChainContext(chain, c), c.chainConfig); err != nil {
 		return err
@@ -1465,7 +1466,8 @@ func isDeveloperVerificationEnabled(state consensus.StateReader) bool {
 func calcSlotOfDevMappingKey(addr common.Address) common.Hash {
 	p := make([]byte, common.HashLength)
 	binary.BigEndian.PutUint16(p[common.HashLength-2:], uint16(systemcontract.DevMappingPosition))
-	return crypto.Keccak256Hash(addr.Hash().Bytes(), p)
+	// return crypto.Keccak256Hash(addr.Hash().Bytes(), p)
+	return crypto.Keccak256Hash(addr.Bytes(), p)
 }
 
 func lastBlacklistUpdatedNumber(state consensus.StateReader) uint64 {

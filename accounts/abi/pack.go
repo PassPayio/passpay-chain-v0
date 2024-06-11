@@ -49,9 +49,9 @@ func packElement(t Type, reflectValue reflect.Value) ([]byte, error) {
 		return common.LeftPadBytes(reflectValue.Bytes(), 32), nil
 	case BoolTy:
 		if reflectValue.Bool() {
-			return math.PaddedBigBytes(common.Big1, 32), nil
+			return math.PaddedBigBytes(common.Big1.ToBig(), 32), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 32), nil
+		return math.PaddedBigBytes(common.Big0.ToBig(), 32), nil
 	case BytesTy:
 		if reflectValue.Kind() == reflect.Array {
 			reflectValue = mustArrayToByteSlice(reflectValue)

@@ -512,9 +512,9 @@ func (typedData *TypedData) EncodePrimitiveValue(encType string, encValue interf
 			return nil, dataMismatchError(encType, encValue)
 		}
 		if boolValue {
-			return math.PaddedBigBytes(common.Big1, 32), nil
+			return math.PaddedBigBytes(common.Big1.ToBig(), 32), nil
 		}
-		return math.PaddedBigBytes(common.Big0, 32), nil
+		return math.PaddedBigBytes(common.Big0.ToBig(), 32), nil
 	case "string":
 		strVal, ok := encValue.(string)
 		if !ok {

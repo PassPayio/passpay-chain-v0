@@ -124,7 +124,7 @@ func (i *bbInput) ToBlock() *types.Block {
 		TxHash:           types.EmptyTxsHash,
 		ReceiptHash:      types.EmptyReceiptsHash,
 		Bloom:            i.Header.Bloom,
-		Difficulty:       common.Big0,
+		Difficulty:       common.Big0.ToBig(),
 		Number:           i.Header.Number,
 		GasLimit:         i.Header.GasLimit,
 		GasUsed:          i.Header.GasUsed,

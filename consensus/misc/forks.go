@@ -1,4 +1,4 @@
-// Copyright 2014 The go-ethereum Authors
+// Copyright 2017 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -14,21 +14,22 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package common
+package misc
 
 import (
-	"github.com/holiman/uint256"
+	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/params"
 )
 
-// Common big integers often used
-var (
-	Big1   = uint256.NewInt(1)
-	Big2   = uint256.NewInt(2)
-	Big3   = uint256.NewInt(3)
-	Big0   = uint256.NewInt(0)
-	Big32  = uint256.NewInt(32)
-	Big256 = uint256.NewInt(256)
-	Big257 = uint256.NewInt(257)
-
-	U2560 = uint256.NewInt(0)
-)
+// VerifyForkHashes verifies that blocks conforming to network hard-forks do have
+// the correct hashes, to avoid clients going off on different chains. This is an
+// optional feature.
+func VerifyForkHashes(config *params.ChainConfig, header *types.Header, uncle bool) error {
+	// We don't care about uncles
+	if uncle {
+		return nil
+	}
+	// If the homestead reprice hash is set, validate it
+	// All ok, return
+	return nil
+}
