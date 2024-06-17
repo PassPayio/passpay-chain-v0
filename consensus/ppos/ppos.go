@@ -107,15 +107,7 @@ var (
 	errExtraValidators = errors.New("non-checkpoint block contains extra validator list")
 
 	// errInvalidExtraValidators is returned if validator data in extra-data field is invalid.
-	errInvalidExtraValidators = errors.New("Invalid extra validators in extra data field")
-
-	// errInvalidCheckpointValidators is returned if a checkpoint block contains an
-	// invalid list of validators (i.e. non divisible by 20 bytes).
-	errInvalidCheckpointValidators = errors.New("invalid validator list on checkpoint block")
-
-	// errMismatchingCheckpointValidators is returned if a checkpoint block contains a
-	// list of validators different than the one the local node calculated.
-	errMismatchingCheckpointValidators = errors.New("mismatching validator list on checkpoint block")
+	errInvalidExtraValidators = errors.New("invalid extra validators in extra data field")
 
 	// errInvalidMixDigest is returned if a block's mix digest is non-zero.
 	errInvalidMixDigest = errors.New("non-zero mix digest")
@@ -129,10 +121,6 @@ var (
 	// errWrongDifficulty is returned if the difficulty of a block doesn't match the
 	// turn of the validator.
 	errWrongDifficulty = errors.New("wrong difficulty")
-
-	// errInvalidTimestamp is returned if the timestamp of a block is lower than
-	// the previous block's timestamp + the minimum block period.
-	errInvalidTimestamp = errors.New("invalid timestamp")
 
 	// ErrInvalidTimestamp is returned if the timestamp of a block is lower than
 	// the previous block's timestamp + the minimum block period.
@@ -150,10 +138,10 @@ var (
 	errRecentlySigned = errors.New("recently signed")
 
 	// errInvalidValidatorLen is returned if validators length is zero or bigger than maxValidators.
-	errInvalidValidatorsLength = errors.New("Invalid validators length")
+	errInvalidValidatorsLength = errors.New("invalid validators length")
 
 	// errInvalidCoinbase is returned if the coinbase isn't the validator of the block.
-	errInvalidCoinbase = errors.New("Invalid coin base")
+	errInvalidCoinbase = errors.New("invalid coin base")
 
 	errInvalidSysGovCount = errors.New("invalid system governance tx count")
 )

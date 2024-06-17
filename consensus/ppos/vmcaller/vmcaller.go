@@ -1,6 +1,8 @@
 package vmcaller
 
 import (
+	"math/big"
+
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
@@ -8,15 +10,15 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/params"
-	"math/big"
+	"github.com/holiman/uint256"
 )
 
 // ExecuteMsg executes transaction sent to system contracts.
 func ExecuteMsg(msg core.Message, state *state.StateDB, header *types.Header, chainContext core.ChainContext, chainConfig *params.ChainConfig) (ret []byte, err error) {
 	blockContext := core.NewEVMBlockContext(header, chainContext, nil)
-	vmenv := vm.NewEVM(blockContext, core.NewEVMTxContext(msg), state, chainConfig, vm.Config{})
+	vmenv := vm.NewEVM(blockContext, core.NewEVMTxContext(&msg), state, chainConfig, vm.Config{})
 
-	ret, _, err = vmenv.Call(vm.AccountRef(msg.From()), *msg.To(), msg.Data(), msg.Gas(), msg.Value())
+	ret, _, err = vmenv.Call(vm.AccountRef(msg.From), *msg.To, msg.Data, msg.GasLimit, uint256.MustFromBig(msg.Value))
 	// Finalise the statedb so any changes can take effect,
 	// and especially if the `from` account is empty, it can be finally deleted.
 	state.Finalise(true)
@@ -27,6 +29,16 @@ func ExecuteMsg(msg core.Message, state *state.StateDB, header *types.Header, ch
 }
 
 // NewLegacyMessage builds a message for consensus and system governance actions, it will not consumes any fee.
-func NewLegacyMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool) types.Message {
-	return types.NewMessage(from, to, nonce, amount, gasLimit, gasPrice, gasPrice, gasPrice, data, nil, checkNonce)
+func NewLegacyMessage(from common.Address, to *common.Address, nonce uint64, amount *big.Int, gasLimit uint64, gasPrice *big.Int, data []byte, checkNonce bool) core.Message {
+	return core.Message{
+		From:              from,
+		To:                to,
+		GasLimit:          gasLimit,
+		GasPrice:          gasPrice,
+		GasFeeCap:         gasPrice,
+		GasTipCap:         gasPrice,
+		Data:              data,
+		AccessList:        nil,
+		SkipAccountChecks: checkNonce,
+	}
 }

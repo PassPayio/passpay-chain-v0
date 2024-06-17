@@ -18,6 +18,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+	"github.com/holiman/uint256"
 )
 
 // Proposal is the system governance proposal info.
@@ -101,10 +102,10 @@ func (c *Ppos) finishProposalById(chain consensus.ChainHeaderReader, header *typ
 
 	msg := vmcaller.NewLegacyMessage(header.Coinbase, &systemcontract.SysGovContractAddr, 0, new(big.Int), math.MaxUint64, new(big.Int), data, false)
 
-	// st.state.Prepare(rules, msg.From, st.evm.Context.Coinbase, msg.To, vm.ActivePrecompiles(rules), msg.AccessList)
-
 	// execute message without a transaction
-	state.Prepare(common.Hash{}, 0)
+	// state.Prepare(common.Hash{}, 0)
+	state.SetTxContext(common.Hash{}, 0)
+
 	_, err = vmcaller.ExecuteMsg(msg, state, header, newChainContext(chain, c), c.chainConfig)
 	if err != nil {
 		return err
@@ -178,7 +179,7 @@ func (c *Ppos) executeProposalMsg(chain consensus.ChainHeaderReader, header *typ
 	case 1:
 		// delete code action
 		ok := state.Erase(prop.To)
-		receipt = types.NewReceipt([]byte{}, ok != true, header.GasUsed)
+		receipt = types.NewReceipt([]byte{}, !ok, header.GasUsed)
 		log.Info("executeProposalMsg", "action", "erase", "id", prop.Id.String(), "to", prop.To, "txHash", txHash.String(), "success", ok)
 	default:
 		receipt = types.NewReceipt([]byte{}, true, header.GasUsed)
@@ -197,13 +198,15 @@ func (c *Ppos) executeProposalMsg(chain consensus.ChainHeaderReader, header *typ
 func (c *Ppos) executeEvmCallProposal(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, prop *Proposal, totalTxIndex int, txHash, bHash common.Hash) *types.Receipt {
 	// actually run the governance message
 	msg := vmcaller.NewLegacyMessage(prop.From, &prop.To, 0, prop.Value, header.GasLimit, new(big.Int), prop.Data, false)
-	state.Prepare(txHash, totalTxIndex)
+	// state.Prepare(txHash, totalTxIndex)
+	state.SetTxContext(txHash, totalTxIndex)
 	_, err := vmcaller.ExecuteMsg(msg, state, header, newChainContext(chain, c), c.chainConfig)
 
 	// governance message will not actually consumes gas
 	receipt := types.NewReceipt([]byte{}, err != nil, header.GasUsed)
+
 	// Set the receipt logs and create a bloom for filtering
-	receipt.Logs = state.GetLogs(txHash, bHash)
+	receipt.Logs = state.GetLogs(txHash, receipt.BlockNumber.Uint64(), bHash)
 	receipt.Bloom = types.CreateBloom(types.Receipts{receipt})
 
 	log.Info("executeProposalMsg", "action", "evmCall", "id", prop.Id.String(), "from", prop.From, "to", prop.To, "value", prop.Value.String(), "data", hexutil.Encode(prop.Data), "txHash", txHash.String(), "err", err)
@@ -231,12 +234,13 @@ func (c *Ppos) ApplySysTx(evm *vm.EVM, state *state.StateDB, txIndex int, sender
 		// evm action.
 		// actually run the governance message
 		msg := vmcaller.NewLegacyMessage(prop.From, &prop.To, 0, prop.Value, tx.Gas(), new(big.Int), prop.Data, false)
-		state.Prepare(tx.Hash(), txIndex)
+		// state.Prepare(tx.Hash(), txIndex)
+		state.SetTxContext(tx.Hash(), txIndex)
 		evm.TxContext = vm.TxContext{
-			Origin:   msg.From(),
-			GasPrice: new(big.Int).Set(msg.GasPrice()),
+			Origin:   msg.From,
+			GasPrice: msg.GasPrice,
 		}
-		ret, _, vmerr = evm.Call(vm.AccountRef(msg.From()), *msg.To(), msg.Data(), msg.Gas(), msg.Value())
+		ret, _, vmerr = evm.Call(vm.AccountRef(msg.From), *msg.To, msg.Data, msg.GasLimit, uint256.MustFromBig(msg.Value))
 		state.Finalise(true)
 	case 1:
 		// delete code action
