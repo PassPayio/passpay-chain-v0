@@ -37,7 +37,7 @@ type Account struct {
 	Code       []byte                      `json:"code,omitempty"`
 	Storage    map[common.Hash]common.Hash `json:"storage,omitempty"`
 	Balance    *big.Int                    `json:"balance" gencodec:"required"`
-	BalancePPT *big.Int                    `json:"balancePPT" gencodec:"required"`
+	BalancePpt *big.Int                    `json:"balancePpt" gencodec:"required"`
 	Nonce      uint64                      `json:"nonce,omitempty"`
 
 	// used in tests
@@ -47,7 +47,7 @@ type Account struct {
 type accountMarshaling struct {
 	Code       hexutil.Bytes
 	Balance    *math.HexOrDecimal256
-	BalancePPT *math.HexOrDecimal256
+	BalancePpt *math.HexOrDecimal256
 	Nonce      math.HexOrDecimal64
 	Storage    map[storageJSON]storageJSON
 	PrivateKey hexutil.Bytes

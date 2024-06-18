@@ -20,7 +20,7 @@ func (a Account) MarshalJSON() ([]byte, error) {
 		Code       hexutil.Bytes               `json:"code,omitempty"`
 		Storage    map[storageJSON]storageJSON `json:"storage,omitempty"`
 		Balance    *math.HexOrDecimal256       `json:"balance" gencodec:"required"`
-		BalancePPT *math.HexOrDecimal256	   `json:"balancePPT" gencodec:"required"`
+		BalancePpt *math.HexOrDecimal256	   `json:"balancePpt" gencodec:"required"`
 		Nonce      math.HexOrDecimal64         `json:"nonce,omitempty"`
 		PrivateKey hexutil.Bytes               `json:"secretKey,omitempty"`
 	}
@@ -33,7 +33,7 @@ func (a Account) MarshalJSON() ([]byte, error) {
 		}
 	}
 	enc.Balance = (*math.HexOrDecimal256)(a.Balance)
-	enc.BalancePPT = (*math.HexOrDecimal256)(a.BalancePPT)
+	enc.BalancePpt = (*math.HexOrDecimal256)(a.BalancePpt)
 	enc.Nonce = math.HexOrDecimal64(a.Nonce)
 	enc.PrivateKey = a.PrivateKey
 	return json.Marshal(&enc)
@@ -45,7 +45,7 @@ func (a *Account) UnmarshalJSON(input []byte) error {
 		Code       *hexutil.Bytes              `json:"code,omitempty"`
 		Storage    map[storageJSON]storageJSON `json:"storage,omitempty"`
 		Balance    *math.HexOrDecimal256       `json:"balance" gencodec:"required"`
-		BalancePPT *math.HexOrDecimal256       `json:"balancePPT" gencodec:"required"`
+		BalancePpt *math.HexOrDecimal256       `json:"balancePpt" gencodec:"required"`
 		Nonce      *math.HexOrDecimal64        `json:"nonce,omitempty"`
 		PrivateKey *hexutil.Bytes              `json:"secretKey,omitempty"`
 	}
@@ -69,10 +69,10 @@ func (a *Account) UnmarshalJSON(input []byte) error {
 	if dec.Nonce != nil {
 		a.Nonce = uint64(*dec.Nonce)
 	}
-	if dec.BalancePPT == nil {
+	if dec.BalancePpt == nil {
 		return errors.New("missing required field 'balancePPT' for GenesisAccount")
 	}
-	a.BalancePPT = (*big.Int)(dec.BalancePPT)
+	a.BalancePpt = (*big.Int)(dec.BalancePpt)
 	if dec.PrivateKey != nil {
 		a.PrivateKey = *dec.PrivateKey
 	}

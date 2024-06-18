@@ -135,8 +135,8 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 		if account.Balance != nil {
 			statedb.AddBalance(addr, uint256.MustFromBig(account.Balance))
 		}
-		if account.BalancePPT != nil {
-			statedb.AddBalancePPT(addr, uint256.MustFromBig(account.BalancePPT))
+		if account.BalancePpt != nil {
+			statedb.AddBalancePPT(addr, uint256.MustFromBig(account.BalancePpt))
 		}
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
@@ -571,7 +571,7 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	var p []struct {
 		Addr       *big.Int
 		Balance    *big.Int
-		BalancePPT *big.Int
+		BalancePpt *big.Int
 		Misc       *struct {
 			Nonce uint64
 			Code  []byte
@@ -586,7 +586,7 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	}
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {
-		acc := types.Account{Balance: account.Balance, BalancePPT: account.BalancePPT}
+		acc := types.Account{Balance: account.Balance, BalancePpt: account.BalancePpt}
 		if account.Misc != nil {
 			acc.Nonce = account.Misc.Nonce
 			acc.Code = account.Misc.Code

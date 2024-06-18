@@ -280,7 +280,7 @@ func (g Alloc) OnAccount(addr *common.Address, dumpAccount state.DumpAccount) {
 		return
 	}
 	balance, _ := new(big.Int).SetString(dumpAccount.Balance, 0)
-	balancePPT, _ := new(big.Int).SetString(dumpAccount.BalancePPT, 0)
+	BalancePpt, _ := new(big.Int).SetString(dumpAccount.BalancePpt, 0)
 	var storage map[common.Hash]common.Hash
 	if dumpAccount.Storage != nil {
 		storage = make(map[common.Hash]common.Hash)
@@ -292,7 +292,7 @@ func (g Alloc) OnAccount(addr *common.Address, dumpAccount state.DumpAccount) {
 		Code:       dumpAccount.Code,
 		Storage:    storage,
 		Balance:    balance,
-		BalancePPT: balancePPT,
+		BalancePpt: BalancePpt,
 		Nonce:      dumpAccount.Nonce,
 	}
 	g[*addr] = genesisAccount

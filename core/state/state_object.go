@@ -503,7 +503,7 @@ func (s *stateObject) SetBalance(amount *uint256.Int) {
 func (s *stateObject) SetBalancePPT(amount *uint256.Int) {
 	s.db.journal.append(pptBalanceChange{
 		account: &s.address,
-		prev:    new(uint256.Int).Set(s.data.BalancePPT),
+		prev:    new(uint256.Int).Set(s.data.BalancePpt),
 	})
 	s.setBalancePPT(amount)
 }
@@ -513,7 +513,7 @@ func (s *stateObject) setBalance(amount *uint256.Int) {
 }
 
 func (s *stateObject) setBalancePPT(amount *uint256.Int) {
-	s.data.BalancePPT = amount
+	s.data.BalancePpt = amount
 }
 
 func (s *stateObject) deepCopy(db *StateDB) *stateObject {
@@ -616,7 +616,7 @@ func (s *stateObject) Balance() *uint256.Int {
 }
 
 func (s *stateObject) BalancePPT() *uint256.Int {
-	return s.data.BalancePPT
+	return s.data.BalancePpt
 }
 
 func (s *stateObject) Nonce() uint64 {

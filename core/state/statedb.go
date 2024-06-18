@@ -654,7 +654,7 @@ func (s *StateDB) preloadAccountFromSnap(addr common.Address) *stateObject {
 		data := &types.StateAccount{
 			Nonce:      acc.Nonce,
 			Balance:    acc.Balance,
-			BalancePPT: acc.BalancePPT,
+			BalancePpt: acc.BalancePpt,
 			CodeHash:   acc.CodeHash,
 			Root:       common.BytesToHash(acc.Root),
 		}
@@ -693,7 +693,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 			data = &types.StateAccount{
 				Nonce:      acc.Nonce,
 				Balance:    acc.Balance,
-				BalancePPT: acc.BalancePPT,
+				BalancePpt: acc.BalancePpt,
 				CodeHash:   acc.CodeHash,
 				Root:       common.BytesToHash(acc.Root),
 			}
@@ -796,7 +796,7 @@ func (s *StateDB) CreateAccount(addr common.Address) {
 	newObj, prev := s.createObject(addr)
 	if prev != nil {
 		newObj.setBalance(prev.data.Balance)
-		newObj.setBalancePPT(prev.data.BalancePPT)
+		newObj.setBalancePPT(prev.data.BalancePpt)
 	}
 }
 
