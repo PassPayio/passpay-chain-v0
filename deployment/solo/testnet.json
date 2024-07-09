@@ -26,8 +26,10 @@
   "coinbase": "0x0000000000000000000000000000000000000000",
   "alloc": {
     "10c033e050e10510a951a56e4a14b4cd3de6ca67": {
-      "balance": "0xDE0B6B3A7640000000000",
-      "balancePpt":"0x0"
+      "nonce":"0x0",
+      "balance": "0xDE0B6B3A76400000000",
+      "balancePpt":"0x0",
+      "code":""
     }
   },
   "number": "0x0",
