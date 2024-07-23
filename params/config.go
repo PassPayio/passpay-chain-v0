@@ -336,7 +336,7 @@ var (
 		Ppos:                          nil,
 	}
 	AllPposProtocolChanges = &ChainConfig{
-		ChainID:                       big.NewInt(1337),
+		ChainID:                       big.NewInt(700),
 		HomesteadBlock:                big.NewInt(0),
 		DAOForkBlock:                  nil,
 		DAOForkSupport:                false,

@@ -67,12 +67,12 @@ func newCanonical(engine consensus.Engine, n int, full bool, scheme string) (eth
 	}
 	if full {
 		// Full block-chain requested
-		genDb, blocks := makeBlockChainWithGenesis(genesis, n, engine, canonicalSeed)
+		genDb, blocks := MakeBlockChainWithGenesis(genesis, n, engine, canonicalSeed)
 		_, err := blockchain.InsertChain(blocks)
 		return genDb, genesis, blockchain, err
 	}
 	// Header-only chain requested
-	genDb, headers := makeHeaderChainWithGenesis(genesis, n, engine, canonicalSeed)
+	genDb, headers := MakeHeaderChainWithGenesis(genesis, n, engine, canonicalSeed)
 	_, err := blockchain.InsertHeaderChain(headers)
 	return genDb, genesis, blockchain, err
 }
@@ -108,7 +108,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 		headerChainB []*types.Header
 	)
 	if full {
-		blockChainB = makeBlockChain(blockchain2.chainConfig, blockchain2.GetBlockByHash(blockchain2.CurrentBlock().Hash()), n, ethash.NewFaker(), genDb, forkSeed)
+		blockChainB = MakeBlockChain(blockchain2.chainConfig, blockchain2.GetBlockByHash(blockchain2.CurrentBlock().Hash()), n, ethash.NewFaker(), genDb, forkSeed)
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
 		}
@@ -124,7 +124,7 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	if full {
 		cur := blockchain.CurrentBlock()
 		tdPre = blockchain.GetTd(cur.Hash(), cur.Number.Uint64())
-		if err := testBlockChainImport(blockChainB, blockchain); err != nil {
+		if err := TestBlockChainImport(blockChainB, blockchain); err != nil {
 			t.Fatalf("failed to import forked block chain: %v", err)
 		}
 		last := blockChainB[len(blockChainB)-1]
@@ -142,9 +142,9 @@ func testFork(t *testing.T, blockchain *BlockChain, i, n int, full bool, compara
 	comparator(tdPre, tdPost)
 }
 
-// testBlockChainImport tries to process a chain of blocks, writing them into
+// TestBlockChainImport tries to process a chain of blocks, writing them into
 // the database if successful.
-func testBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
+func TestBlockChainImport(chain types.Blocks, blockchain *BlockChain) error {
 	for _, block := range chain {
 		// Try and process the block
 		err := blockchain.engine.VerifyHeader(blockchain, block.Header())
@@ -209,7 +209,7 @@ func testLastBlock(t *testing.T, scheme string) {
 	}
 	defer blockchain.Stop()
 
-	blocks := makeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 1, ethash.NewFullFaker(), genDb, 0)
+	blocks := MakeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 1, ethash.NewFullFaker(), genDb, 0)
 	if _, err := blockchain.InsertChain(blocks); err != nil {
 		t.Fatalf("Failed to insert block: %v", err)
 	}
@@ -243,7 +243,7 @@ func testInsertAfterMerge(t *testing.T, blockchain *BlockChain, i, n int, full b
 
 	// Extend the newly created chain
 	if full {
-		blockChainB := makeBlockChain(blockchain2.chainConfig, blockchain2.GetBlockByHash(blockchain2.CurrentBlock().Hash()), n, ethash.NewFaker(), genDb, forkSeed)
+		blockChainB := MakeBlockChain(blockchain2.chainConfig, blockchain2.GetBlockByHash(blockchain2.CurrentBlock().Hash()), n, ethash.NewFaker(), genDb, forkSeed)
 		if _, err := blockchain2.InsertChain(blockChainB); err != nil {
 			t.Fatalf("failed to insert forking chain: %v", err)
 		}
@@ -534,8 +534,8 @@ func testBrokenChain(t *testing.T, full bool, scheme string) {
 
 	// Create a forked chain, and try to insert with a missing link
 	if full {
-		chain := makeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 5, ethash.NewFaker(), genDb, forkSeed)[1:]
-		if err := testBlockChainImport(chain, blockchain); err == nil {
+		chain := MakeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 5, ethash.NewFaker(), genDb, forkSeed)[1:]
+		if err := TestBlockChainImport(chain, blockchain); err == nil {
 			t.Errorf("broken block chain not reported")
 		}
 	} else {
@@ -676,7 +676,7 @@ func testBadHashes(t *testing.T, full bool, scheme string) {
 
 	// Create a chain, ban a hash and try to import
 	if full {
-		blocks := makeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 3, ethash.NewFaker(), genDb, 10)
+		blocks := MakeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 3, ethash.NewFaker(), genDb, 10)
 
 		BadHashes[blocks[2].Header().Hash()] = true
 		defer func() { delete(BadHashes, blocks[2].Header().Hash()) }()
@@ -714,7 +714,7 @@ func testReorgBadHashes(t *testing.T, full bool, scheme string) {
 	}
 	// Create a chain, import and ban afterwards
 	headers := makeHeaderChain(blockchain.chainConfig, blockchain.CurrentHeader(), 4, ethash.NewFaker(), genDb, 10)
-	blocks := makeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 4, ethash.NewFaker(), genDb, 10)
+	blocks := MakeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), 4, ethash.NewFaker(), genDb, 10)
 
 	if full {
 		if _, err = blockchain.InsertChain(blocks); err != nil {
@@ -783,7 +783,7 @@ func testInsertNonceError(t *testing.T, full bool, scheme string) {
 			failNum uint64
 		)
 		if full {
-			blocks := makeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), i, ethash.NewFaker(), genDb, 0)
+			blocks := MakeBlockChain(blockchain.chainConfig, blockchain.GetBlockByHash(blockchain.CurrentBlock().Hash()), i, ethash.NewFaker(), genDb, 0)
 
 			failAt = rand.Int() % len(blocks)
 			failNum = blocks[failAt].NumberU64()

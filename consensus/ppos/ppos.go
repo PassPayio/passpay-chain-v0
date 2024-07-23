@@ -596,14 +596,14 @@ func (c *Ppos) Prepare(chain consensus.ChainHeaderReader, header *types.Header) 
 func (c *Ppos) Finalize(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB, txs *[]*types.Transaction, uncles []*types.Header, _ []*types.Withdrawal, receipts *[]*types.Receipt, systemTxs []*types.Transaction) error {
 	// Initialize all system contracts at block 1.
 	if header.Number.Cmp(common.Big1.ToBig()) == 0 {
-		if err := c.initializeSystemContracts(chain, header, state); err != nil {
+		if err := c.InitializeSystemContracts(chain, header, state); err != nil {
 			log.Error("Initialize system contracts failed", "err", err)
 			return err
 		}
 	}
 
 	if header.Difficulty.Cmp(diffInTurn) != 0 {
-		if err := c.tryPunishValidator(chain, header, state); err != nil {
+		if err := c.TryPunishValidator(chain, header, state); err != nil {
 			return err
 		}
 	}
@@ -620,7 +620,7 @@ func (c *Ppos) Finalize(chain consensus.ChainHeaderReader, header *types.Header,
 
 	// execute block reward tx.
 	if len(*txs) > 0 {
-		if err := c.trySendBlockReward(chain, header, state); err != nil {
+		if err := c.TrySendBlockReward(chain, header, state); err != nil {
 			return err
 		}
 	}
@@ -698,21 +698,21 @@ func (c *Ppos) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *ty
 	}()
 	// Initialize all system contracts at block 1.
 	if header.Number.Cmp(common.Big1.ToBig()) == 0 {
-		if err := c.initializeSystemContracts(chain, header, state); err != nil {
+		if err := c.InitializeSystemContracts(chain, header, state); err != nil {
 			panic(err)
 		}
 	}
 
 	// punish validator if necessary
 	if header.Difficulty.Cmp(diffInTurn) != 0 {
-		if err := c.tryPunishValidator(chain, header, state); err != nil {
+		if err := c.TryPunishValidator(chain, header, state); err != nil {
 			panic(err)
 		}
 	}
 
 	// deposit block reward if any tx exists.
 	if len(txs) > 0 {
-		if err := c.trySendBlockReward(chain, header, state); err != nil {
+		if err := c.TrySendBlockReward(chain, header, state); err != nil {
 			panic(err)
 		}
 	}
@@ -772,7 +772,7 @@ func (c *Ppos) FinalizeAndAssemble(chain consensus.ChainHeaderReader, header *ty
 	return types.NewBlock(header, txs, nil, receipts, new(trie.Trie)), receipts, nil
 }
 
-func (c *Ppos) trySendBlockReward(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
+func (c *Ppos) TrySendBlockReward(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
 	// Fees will come in JPYW, so should use GetBalance function
 	fee := state.GetBalance(consensus.FeeRecoder)
 	if fee.Cmp(common.Big0) <= 0 {
@@ -802,7 +802,7 @@ func (c *Ppos) trySendBlockReward(chain consensus.ChainHeaderReader, header *typ
 	return nil
 }
 
-func (c *Ppos) tryPunishValidator(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
+func (c *Ppos) TryPunishValidator(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
 	number := header.Number.Uint64()
 	snap, err := c.snapshot(chain, number-1, header.ParentHash, nil)
 	if err != nil {
@@ -845,8 +845,8 @@ func (c *Ppos) doSomethingAtEpoch(chain consensus.ChainHeaderReader, header *typ
 	return newSortedValidators, nil
 }
 
-// initializeSystemContracts initializes all genesis system contracts.
-func (c *Ppos) initializeSystemContracts(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
+// InitializeSystemContracts initializes all genesis system contracts.
+func (c *Ppos) InitializeSystemContracts(chain consensus.ChainHeaderReader, header *types.Header, state *state.StateDB) error {
 	snap, err := c.snapshot(chain, 0, header.ParentHash, nil)
 	if err != nil {
 		return err
