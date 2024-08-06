@@ -93,9 +93,9 @@ type stateObject struct {
 	created bool
 
 	// only used between StateDB.preUpdateStateObject and StateDB.updateStateObject
-	accountRLP     []byte
-	rlpErr         error
-	slimAccountRLP []byte
+	// accountRLP     []byte
+	// rlpErr         error
+	// slimAccountRLP []byte
 
 	// only used between updateTrieConcurrencySafe and updateSnapshot
 	snapStorage map[common.Hash][]byte

@@ -20,7 +20,6 @@ package state
 import (
 	"fmt"
 	"sort"
-	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -32,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/params"
-	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	"github.com/ethereum/go-ethereum/trie/trienode"
 	"github.com/ethereum/go-ethereum/trie/triestate"
@@ -540,7 +538,7 @@ func (s *StateDB) GetTransientState(addr common.Address, key common.Hash) common
 
 // updateStateObject writes the given object to the trie.
 func (s *StateDB) updateStateObject(obj *stateObject) {
-	obj.updateSnapshot()
+	// obj.updateSnapshot()
 
 	// Track the amount of time wasted on updating the account from the trie
 	if metrics.EnabledExpensive {
@@ -575,7 +573,7 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 	}
 
 	// clear rlp result
-	obj.accountRLP, obj.slimAccountRLP, obj.rlpErr = nil, nil, nil
+	// obj.accountRLP, obj.slimAccountRLP, obj.rlpErr = nil, nil, nil
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -647,7 +645,7 @@ func (s *StateDB) preloadAccountFromSnap(addr common.Address) *stateObject {
 		return nil
 	}
 
-	if acc, err := s.snap.Account(crypto.HashDataWithCache(nil, addr.Bytes())); err == nil {
+	if acc, err := s.snap.Account(crypto.HashData(nil, addr.Bytes())); err == nil {
 		if acc == nil {
 			return nil
 		}
@@ -1010,27 +1008,22 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// the account prefetcher. Instead, let's process all the storage updates
 	// first, giving the account prefetches just a few more milliseconds of time
 	// to pull useful data from disk.
-	var wg sync.WaitGroup
+	// var wg sync.WaitGroup
 	for addr := range s.stateObjectsPending {
 		if obj := s.stateObjects[addr]; !obj.deleted {
-			obj.finalise(false)
-			wg.Add(1)
-			gopool.Submit(func() {
-				s.preUpdateStateObject(obj)
-				wg.Done()
-			})
+			obj.updateRoot()
 		}
 	}
 
 	// Track the amount of time wasted on updating the storage trie and getting rlp of the account
-	var start time.Time
-	if metrics.EnabledExpensive {
-		start = time.Now()
-	}
-	wg.Wait()
-	if metrics.EnabledExpensive {
-		s.StorageUpdates += time.Since(start)
-	}
+	// var start time.Time
+	// if metrics.EnabledExpensive {
+	// 	start = time.Now()
+	// }
+	// wg.Wait()
+	// if metrics.EnabledExpensive {
+	// 	s.StorageUpdates += time.Since(start)
+	// }
 	// Now we're about to start to write changes to the trie. The trie is so far
 	// _untouched_. We can check with the prefetcher, if it can give us a trie
 	// which has the same root, but also has some content loaded into it.
@@ -1535,20 +1528,20 @@ func (s *StateDB) Erase(addr common.Address) bool {
 }
 
 // concurrency safe
-func (s *StateDB) preUpdateStateObject(obj *stateObject) {
-	obj.updateTrieConcurrencySafe()
+// func (s *StateDB) preUpdateStateObject(obj *stateObject) {
+// 	obj.updateTrieConcurrencySafe()
 
-	// If nothing changed, don't bother with hashing anything
-	if obj.trie != nil {
-		obj.data.Root = obj.trie.Hash()
-	}
+// 	// If nothing changed, don't bother with hashing anything
+// 	if obj.trie != nil {
+// 		obj.data.Root = obj.trie.Hash()
+// 	}
 
-	// Encode the account and update the account trie
-	obj.accountRLP, obj.rlpErr = rlp.EncodeToBytes(obj)
-	if s.snap != nil {
-		obj.slimAccountRLP = types.SlimAccountRLP(obj.data)
-	}
-}
+// 	// Encode the account and update the account trie
+// 	obj.accountRLP, obj.rlpErr = rlp.EncodeToBytes(obj)
+// 	if s.snap != nil {
+// 		obj.slimAccountRLP = types.SlimAccountRLP(obj.data)
+// 	}
+// }
 
 // copySet returns a deep-copied set.
 func copySet[k comparable](set map[k][]byte) map[k][]byte {
