@@ -119,7 +119,7 @@ func TestCalcBaseFee(t *testing.T) {
 	}
 	for i, test := range tests {
 		parent := &types.Header{
-			Number:   common.Big32,
+			Number:   common.Big32.ToBig(),
 			GasLimit: test.parentGasLimit,
 			GasUsed:  test.parentGasUsed,
 			BaseFee:  big.NewInt(test.parentBaseFee),

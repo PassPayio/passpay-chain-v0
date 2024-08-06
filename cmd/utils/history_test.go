@@ -63,7 +63,7 @@ func TestHistoryImportAndExport(t *testing.T) {
 		tx, err := types.SignNewTx(key, signer, &types.DynamicFeeTx{
 			ChainID:    genesis.Config.ChainID,
 			Nonce:      uint64(i - 1),
-			GasTipCap:  common.Big0,
+			GasTipCap:  common.Big0.ToBig(),
 			GasFeeCap:  g.PrevBlock(0).BaseFee(),
 			Gas:        50000,
 			To:         &common.Address{0xaa},

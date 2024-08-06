@@ -975,6 +975,9 @@ func (bc *BlockChain) stopWithoutSaving() {
 	// returned.
 	bc.chainmu.Close()
 	bc.wg.Wait()
+
+	// waiting async commit to finish
+	// bc.stateCache.TrieDB().FlushLatch.Wait()
 }
 
 // Stop stops the blockchain service. If any imports are currently in progress
@@ -1364,6 +1367,7 @@ func (bc *BlockChain) writeBlockWithState(block *types.Block, receipts []*types.
 	if err := blockBatch.Write(); err != nil {
 		log.Crit("Failed to write block into disk", "err", err)
 	}
+
 	// Commit all cached state changes into underlying memory database.
 	root, err := state.Commit(block.NumberU64(), bc.chainConfig.IsEIP158(block.Number()))
 	if err != nil {
@@ -1498,7 +1502,7 @@ func (bc *BlockChain) addFutureBlock(block *types.Block) error {
 	if block.Time() > max {
 		return fmt.Errorf("future block timestamp %v > allowed %v", block.Time(), max)
 	}
-	if block.Difficulty().Cmp(common.Big0) == 0 {
+	if block.Difficulty().Cmp(common.Big0.ToBig()) == 0 {
 		// Never add PoS blocks into the future queue
 		return nil
 	}

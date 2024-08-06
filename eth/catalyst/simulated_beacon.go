@@ -255,7 +255,7 @@ func (c *SimulatedBeacon) Commit() common.Hash {
 // Rollback un-sends previously added transactions.
 func (c *SimulatedBeacon) Rollback() {
 	// Flush all transactions from the transaction pools
-	maxUint256 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big1)
+	maxUint256 := new(big.Int).Sub(new(big.Int).Lsh(common.Big1.ToBig(), 256), common.Big1.ToBig())
 	c.eth.TxPool().SetGasTip(maxUint256)
 	// Set the gas tip back to accept new transactions
 	// TODO (Marius van der Wijden): set gas tip to parameter passed by config

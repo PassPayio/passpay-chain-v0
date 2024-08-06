@@ -29,18 +29,20 @@ import (
 // StateAccount is the Ethereum consensus representation of accounts.
 // These objects are stored in the main account trie.
 type StateAccount struct {
-	Nonce    uint64
-	Balance  *uint256.Int
-	Root     common.Hash // merkle root of the storage trie
-	CodeHash []byte
+	Nonce      uint64
+	Balance    *uint256.Int
+	BalancePpt *uint256.Int
+	Root       common.Hash // merkle root of the storage trie
+	CodeHash   []byte
 }
 
 // NewEmptyStateAccount constructs an empty state account.
 func NewEmptyStateAccount() *StateAccount {
 	return &StateAccount{
-		Balance:  new(uint256.Int),
-		Root:     EmptyRootHash,
-		CodeHash: EmptyCodeHash.Bytes(),
+		Balance:    new(uint256.Int),
+		BalancePpt: new(uint256.Int),
+		Root:       EmptyRootHash,
+		CodeHash:   EmptyCodeHash.Bytes(),
 	}
 }
 
@@ -62,17 +64,19 @@ func (acct *StateAccount) Copy() *StateAccount {
 // with a byte slice. This format can be used to represent full-consensus format
 // or slim format which replaces the empty root and code hash as nil byte slice.
 type SlimAccount struct {
-	Nonce    uint64
-	Balance  *uint256.Int
-	Root     []byte // Nil if root equals to types.EmptyRootHash
-	CodeHash []byte // Nil if hash equals to types.EmptyCodeHash
+	Nonce      uint64
+	Balance    *uint256.Int
+	BalancePpt *uint256.Int
+	Root       []byte // Nil if root equals to types.EmptyRootHash
+	CodeHash   []byte // Nil if hash equals to types.EmptyCodeHash
 }
 
 // SlimAccountRLP encodes the state account in 'slim RLP' format.
 func SlimAccountRLP(account StateAccount) []byte {
 	slim := SlimAccount{
-		Nonce:   account.Nonce,
-		Balance: account.Balance,
+		Nonce:      account.Nonce,
+		Balance:    account.Balance,
+		BalancePpt: account.BalancePpt,
 	}
 	if account.Root != EmptyRootHash {
 		slim.Root = account.Root[:]

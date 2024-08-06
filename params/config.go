@@ -60,6 +60,11 @@ var (
 		ShanghaiTime:                  newUint64(1681338455),
 		CancunTime:                    newUint64(1710338135),
 		Ethash:                        new(EthashConfig),
+		Ppos: &PposConfig{
+			Period:                3,
+			Epoch:                 200,
+			EnableDevVerification: true,
+		},
 	}
 	// HoleskyChainConfig contains the chain parameters to run a node on the Holesky test network.
 	HoleskyChainConfig = &ChainConfig{
@@ -85,6 +90,10 @@ var (
 		ShanghaiTime:                  newUint64(1696000704),
 		CancunTime:                    newUint64(1707305664),
 		Ethash:                        new(EthashConfig),
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
+		},
 	}
 	// SepoliaChainConfig contains the chain parameters to run a node on the Sepolia test network.
 	SepoliaChainConfig = &ChainConfig{
@@ -110,6 +119,10 @@ var (
 		ShanghaiTime:                  newUint64(1677557088),
 		CancunTime:                    newUint64(1706655072),
 		Ethash:                        new(EthashConfig),
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
+		},
 	}
 	// GoerliChainConfig contains the chain parameters to run a node on the Görli test network.
 	GoerliChainConfig = &ChainConfig{
@@ -132,9 +145,10 @@ var (
 		TerminalTotalDifficultyPassed: true,
 		ShanghaiTime:                  newUint64(1678832736),
 		CancunTime:                    newUint64(1705473120),
-		Clique: &CliqueConfig{
-			Period: 15,
-			Epoch:  30000,
+		Clique:                        nil,
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
 		},
 	}
 	// AllEthashProtocolChanges contains every protocol change (EIPs) introduced
@@ -165,6 +179,10 @@ var (
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        new(EthashConfig),
 		Clique:                        nil,
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
+		},
 	}
 
 	AllDevChainProtocolChanges = &ChainConfig{
@@ -185,6 +203,10 @@ var (
 		ShanghaiTime:                  newUint64(0),
 		TerminalTotalDifficulty:       big.NewInt(0),
 		TerminalTotalDifficultyPassed: true,
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
+		},
 	}
 
 	// AllCliqueProtocolChanges contains every protocol change (EIPs) introduced
@@ -215,6 +237,7 @@ var (
 		TerminalTotalDifficultyPassed: false,
 		Ethash:                        nil,
 		Clique:                        &CliqueConfig{Period: 0, Epoch: 30000},
+		Ppos:                          nil,
 	}
 
 	// TestChainConfig contains every protocol change (EIPs) introduced
@@ -245,6 +268,10 @@ var (
 		TerminalTotalDifficultyPassed: false,
 		Ethash:                        new(EthashConfig),
 		Clique:                        nil,
+		Ppos: &PposConfig{
+			Period: 3,
+			Epoch:  200,
+		},
 	}
 
 	// MergedTestChainConfig contains every protocol change (EIPs) introduced
@@ -275,6 +302,7 @@ var (
 		TerminalTotalDifficultyPassed: true,
 		Ethash:                        new(EthashConfig),
 		Clique:                        nil,
+		Ppos:                          nil,
 	}
 
 	// NonActivatedConfig defines the chain configuration without activating
@@ -305,6 +333,38 @@ var (
 		TerminalTotalDifficultyPassed: false,
 		Ethash:                        new(EthashConfig),
 		Clique:                        nil,
+		Ppos:                          nil,
+	}
+	AllPposProtocolChanges = &ChainConfig{
+		ChainID:                       big.NewInt(700),
+		HomesteadBlock:                big.NewInt(0),
+		DAOForkBlock:                  nil,
+		DAOForkSupport:                false,
+		EIP150Block:                   big.NewInt(0),
+		EIP155Block:                   big.NewInt(0),
+		EIP158Block:                   big.NewInt(0),
+		ByzantiumBlock:                big.NewInt(0),
+		ConstantinopleBlock:           big.NewInt(0),
+		PetersburgBlock:               big.NewInt(0),
+		IstanbulBlock:                 big.NewInt(0),
+		MuirGlacierBlock:              big.NewInt(0),
+		BerlinBlock:                   big.NewInt(0),
+		LondonBlock:                   big.NewInt(0),
+		ArrowGlacierBlock:             nil,
+		GrayGlacierBlock:              nil,
+		MergeNetsplitBlock:            nil,
+		ShanghaiTime:                  nil,
+		CancunTime:                    nil,
+		PragueTime:                    nil,
+		VerkleTime:                    nil,
+		TerminalTotalDifficulty:       nil,
+		TerminalTotalDifficultyPassed: false,
+		Ethash:                        nil,
+		Clique:                        nil,
+		Ppos: &PposConfig{
+			Period: 0,
+			Epoch:  30000,
+		},
 	}
 	TestRules = TestChainConfig.Rules(new(big.Int), false, 0)
 )
@@ -362,9 +422,13 @@ type ChainConfig struct {
 	// even without having seen the TTD locally (safer long term).
 	TerminalTotalDifficultyPassed bool `json:"terminalTotalDifficultyPassed,omitempty"`
 
+	RedCoastBlock *big.Int `json:"redCoastBlock,omitempty"` // RedCoast switch block (nil = no fork, set value ≥ 2 to activate it)
+	SophonBlock   *big.Int `json:"sophonBlock,omitempty"`   // Sophon switch block (nil = no fork, set > RedCoastBlock to activate it)
+
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
+	Ppos   *PposConfig   `json:"ppos,omitempty"`
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -379,6 +443,19 @@ func (c *EthashConfig) String() string {
 type CliqueConfig struct {
 	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
 	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+}
+
+// PposConfig is the consensus engine configs for proof-of-stake-authority based sealing.
+type PposConfig struct {
+	Period uint64 `json:"period"` // Number of seconds between blocks to enforce
+	Epoch  uint64 `json:"epoch"`  // Epoch length to reset votes and checkpoint
+
+	EnableDevVerification bool `json:"enableDevVerification"` // Enable developer address verification
+}
+
+// String implements the stringer interface, returning the consensus engine details.
+func (c *PposConfig) String() string {
+	return "ppos"
 }
 
 // String implements the stringer interface, returning the consensus engine details.
@@ -611,6 +688,7 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		block     *big.Int // forks up to - and including the merge - were defined with block numbers
 		timestamp *uint64  // forks after the merge are scheduled using timestamps
 		optional  bool     // if true, the fork may be nil and next fork is still allowed
+		minValue  *big.Int
 	}
 	var lastFork fork
 	for _, cur := range []fork{
@@ -665,6 +743,36 @@ func (c *ChainConfig) CheckConfigForkOrder() error {
 		}
 		// If it was optional and not set, then ignore it
 		if !cur.optional || (cur.block != nil || cur.timestamp != nil) {
+			lastFork = cur
+		}
+	}
+	// ppos fork
+	lastFork = fork{}
+	for _, cur := range []fork{
+		{name: "redCoastBlock", block: c.RedCoastBlock, minValue: big.NewInt(2)},
+		{name: "sophonBlock", block: c.SophonBlock},
+	} {
+		// check minimal fork block
+		if cur.block != nil && cur.minValue != nil {
+			if cur.block.Cmp(cur.minValue) < 0 {
+				return fmt.Errorf("unsupported fork ordering: %v enabled at %v, but it must greater than %v ", cur.name, cur.block, cur.minValue)
+			}
+		}
+		if lastFork.name != "" {
+			// Next one must be higher number
+			if lastFork.block == nil && cur.block != nil {
+				return fmt.Errorf("unsupported fork ordering: %v not enabled, but %v enabled at %v",
+					lastFork.name, cur.name, cur.block)
+			}
+			if lastFork.block != nil && cur.block != nil {
+				if lastFork.block.Cmp(cur.block) >= 0 {
+					return fmt.Errorf("unsupported fork ordering: %v enabled at %v, but %v enabled at %v",
+						lastFork.name, lastFork.block, cur.name, cur.block)
+				}
+			}
+		}
+		// If it was optional and not set, then ignore it
+		if !cur.optional || cur.block != nil {
 			lastFork = cur
 		}
 	}
@@ -738,6 +846,9 @@ func (c *ChainConfig) checkCompatible(newcfg *ChainConfig, headNumber *big.Int, 
 	}
 	if isForkTimestampIncompatible(c.VerkleTime, newcfg.VerkleTime, headTimestamp) {
 		return newTimestampCompatError("Verkle fork timestamp", c.VerkleTime, newcfg.VerkleTime)
+	}
+	if isForkBlockIncompatible(c.RedCoastBlock, newcfg.RedCoastBlock, headNumber) {
+		return newBlockCompatError("RedCoast fork block", c.RedCoastBlock, newcfg.RedCoastBlock)
 	}
 	return nil
 }
@@ -930,4 +1041,22 @@ func (c *ChainConfig) Rules(num *big.Int, isMerge bool, timestamp uint64) Rules 
 		IsPrague:         isMerge && c.IsPrague(num, timestamp),
 		IsVerkle:         isMerge && c.IsVerkle(num, timestamp),
 	}
+}
+
+// IsRedCoast returns whether num represents a block number after the RedCoast fork
+func (c *ChainConfig) IsRedCoast(num *big.Int) bool {
+	return isForked(c.RedCoastBlock, num)
+}
+
+// IsSophon returns whether num represents a block number after the SophonBlock fork
+func (c *ChainConfig) IsSophon(num *big.Int) bool {
+	return isForked(c.SophonBlock, num)
+}
+
+// isForked returns whether a fork scheduled at block s is active at the given head block.
+func isForked(s, head *big.Int) bool {
+	if s == nil || head == nil {
+		return false
+	}
+	return s.Cmp(head) <= 0
 }

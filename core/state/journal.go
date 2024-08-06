@@ -110,6 +110,13 @@ type (
 		account *common.Address
 		prev    *uint256.Int
 	}
+
+	// Changes to individual accounts.
+	pptBalanceChange struct {
+		account *common.Address
+		prev    *uint256.Int
+	}
+
 	nonceChange struct {
 		account *common.Address
 		prev    uint64
@@ -148,6 +155,11 @@ type (
 	transientStorageChange struct {
 		account       *common.Address
 		key, prevalue common.Hash
+	}
+	eraseChange struct {
+		account            *common.Address
+		prevcode, prevhash []byte
+		prevroot           common.Hash
 	}
 )
 
@@ -297,4 +309,21 @@ func (ch accessListAddSlotChange) revert(s *StateDB) {
 
 func (ch accessListAddSlotChange) dirtied() *common.Address {
 	return nil
+}
+
+func (ch pptBalanceChange) revert(s *StateDB) {
+	s.getStateObject(*ch.account).setBalancePPT(ch.prev)
+}
+
+func (ch pptBalanceChange) dirtied() *common.Address {
+	return ch.account
+}
+
+func (ch eraseChange) revert(s *StateDB) {
+	obj := s.getStateObject(*ch.account)
+	obj.revertErase(common.BytesToHash(ch.prevhash), ch.prevcode, ch.prevroot)
+}
+
+func (ch eraseChange) dirtied() *common.Address {
+	return ch.account
 }

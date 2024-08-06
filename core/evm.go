@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/holiman/uint256"
+	"github.com/modern-go/reflect2"
 )
 
 // ChainContext supports retrieving headers and consensus parameters from the
@@ -47,7 +48,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	)
 
 	// If we don't have an explicit author (i.e. not mining), extract from the header
-	if author == nil {
+	if author == nil && chain != nil {
 		beneficiary, _ = chain.Engine().Author(header) // Ignore error, we're past header validation
 	} else {
 		beneficiary = *author
@@ -58,7 +59,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 	if header.ExcessBlobGas != nil {
 		blobBaseFee = eip4844.CalcBlobFee(*header.ExcessBlobGas)
 	}
-	if header.Difficulty.Cmp(common.Big0) == 0 {
+	if header.Difficulty.Cmp(common.Big0.ToBig()) == 0 {
 		random = &header.MixDigest
 	}
 	return vm.BlockContext{
@@ -73,6 +74,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		BlobBaseFee: blobBaseFee,
 		GasLimit:    header.GasLimit,
 		Random:      random,
+		CanCreate:   GetCanCreateFn(chain),
 	}
 }
 
@@ -138,4 +140,21 @@ func CanTransfer(db vm.StateDB, addr common.Address, amount *uint256.Int) bool {
 func Transfer(db vm.StateDB, sender, recipient common.Address, amount *uint256.Int) {
 	db.SubBalance(sender, amount)
 	db.AddBalance(recipient, amount)
+}
+
+func GetCanCreateFn(chain ChainContext) vm.CanCreateFunc {
+	if reflect2.IsNil(chain) || chain.Engine() == nil {
+		return func(db vm.StateDB, address common.Address, height *uint256.Int) bool {
+			return true
+		}
+	}
+	posa, isPoSA := chain.Engine().(consensus.PoSA)
+	if isPoSA {
+		return func(db vm.StateDB, address common.Address, height *uint256.Int) bool {
+			return posa.CanCreate(db, address, height)
+		}
+	}
+	return func(db vm.StateDB, address common.Address, height *uint256.Int) bool {
+		return true
+	}
 }

@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/gopool"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -46,6 +47,11 @@ type revision struct {
 	id           int
 	journalIndex int
 }
+
+var (
+	// emptyRoot is the known root hash of an empty trie.
+	emptyRoot = common.HexToHash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+)
 
 // StateDB structs within the ethereum protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
@@ -124,7 +130,7 @@ type StateDB struct {
 	AccountCommits       time.Duration
 	StorageReads         time.Duration
 	StorageHashes        time.Duration
-	StorageUpdates       time.Duration
+	StorageUpdates       time.Duration // rlp(account) included
 	StorageCommits       time.Duration
 	SnapshotAccountReads time.Duration
 	SnapshotStorageReads time.Duration
@@ -288,6 +294,15 @@ func (s *StateDB) GetBalance(addr common.Address) *uint256.Int {
 	return common.U2560
 }
 
+// GetBalancePPT retrieves the ppt balance from the given address or 0 if object not found
+func (s *StateDB) GetBalancePPT(addr common.Address) *uint256.Int {
+	stateObject := s.getStateObject(addr)
+	if stateObject != nil {
+		return stateObject.BalancePPT()
+	}
+	return common.U2560
+}
+
 // GetNonce retrieves the nonce from the given address or 0 if object not found
 func (s *StateDB) GetNonce(addr common.Address) uint64 {
 	stateObject := s.getStateObject(addr)
@@ -380,6 +395,14 @@ func (s *StateDB) AddBalance(addr common.Address, amount *uint256.Int) {
 	}
 }
 
+// AddBalancePPT adds amount of ppt to the account associated with addr.
+func (s *StateDB) AddBalancePPT(addr common.Address, amount *uint256.Int) {
+	stateObject := s.getOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.AddBalancePPT(amount)
+	}
+}
+
 // SubBalance subtracts amount from the account associated with addr.
 func (s *StateDB) SubBalance(addr common.Address, amount *uint256.Int) {
 	stateObject := s.getOrNewStateObject(addr)
@@ -388,10 +411,25 @@ func (s *StateDB) SubBalance(addr common.Address, amount *uint256.Int) {
 	}
 }
 
+// SubBalancePPT subtracts ppt amount from the account associated with addr.
+func (s *StateDB) SubBalancePPT(addr common.Address, amount *uint256.Int) {
+	stateObject := s.getOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SubBalancePPT(amount)
+	}
+}
+
 func (s *StateDB) SetBalance(addr common.Address, amount *uint256.Int) {
 	stateObject := s.getOrNewStateObject(addr)
 	if stateObject != nil {
 		stateObject.SetBalance(amount)
+	}
+}
+
+func (s *StateDB) SetBalancePPT(addr common.Address, amount *uint256.Int) {
+	stateObject := s.getOrNewStateObject(addr)
+	if stateObject != nil {
+		stateObject.SetBalancePPT(amount)
 	}
 }
 
@@ -500,12 +538,17 @@ func (s *StateDB) GetTransientState(addr common.Address, key common.Hash) common
 
 // updateStateObject writes the given object to the trie.
 func (s *StateDB) updateStateObject(obj *stateObject) {
+	// obj.updateSnapshot()
+
 	// Track the amount of time wasted on updating the account from the trie
 	if metrics.EnabledExpensive {
 		defer func(start time.Time) { s.AccountUpdates += time.Since(start) }(time.Now())
 	}
 	// Encode the account and update the account trie
 	addr := obj.Address()
+	// if obj.rlpErr != nil {
+	// 	panic(fmt.Errorf("can't encode object at %x: %v", addr[:], obj.rlpErr))
+	// }
 	if err := s.trie.UpdateAccount(addr, &obj.data); err != nil {
 		s.setError(fmt.Errorf("updateStateObject (%x) error: %v", addr[:], err))
 	}
@@ -528,6 +571,9 @@ func (s *StateDB) updateStateObject(obj *stateObject) {
 			s.accountsOrigin[obj.address] = types.SlimAccountRLP(*obj.origin)
 		}
 	}
+
+	// clear rlp result
+	// obj.accountRLP, obj.slimAccountRLP, obj.rlpErr = nil, nil, nil
 }
 
 // deleteStateObject removes the given object from the state trie.
@@ -553,6 +599,74 @@ func (s *StateDB) getStateObject(addr common.Address) *stateObject {
 	return nil
 }
 
+// preload accounts from Transactions
+func (s *StateDB) PreloadAccounts(block *types.Block, signer types.Signer) {
+	if s.snap == nil {
+		return
+	}
+
+	if metrics.EnabledExpensive {
+		defer func(start time.Time) {
+			s.SnapshotAccountReads += time.Since(start)
+		}(time.Now())
+	}
+
+	objsForPreload := make(map[common.Address]*stateObject, 2*len(block.Transactions()))
+	for _, tx := range block.Transactions() {
+		from, err := types.Sender(signer, tx) // from have been cached
+		if err != nil {
+			break
+		}
+		objsForPreload[from] = nil
+		if tx.To() != nil {
+			objsForPreload[*tx.To()] = nil
+		}
+	}
+
+	objsChan := make(chan *stateObject, len(objsForPreload))
+	for addr := range objsForPreload {
+		addr := addr
+		gopool.Submit(func() {
+			objsChan <- s.preloadAccountFromSnap(addr)
+		})
+	}
+
+	for i := 0; i < len(objsForPreload); i++ {
+		if obj := <-objsChan; obj != nil {
+			if _, ok := s.stateObjects[obj.Address()]; !ok {
+				s.setStateObject(obj)
+			}
+		}
+	}
+}
+
+func (s *StateDB) preloadAccountFromSnap(addr common.Address) *stateObject {
+	if s.snap == nil {
+		return nil
+	}
+
+	if acc, err := s.snap.Account(crypto.HashData(nil, addr.Bytes())); err == nil {
+		if acc == nil {
+			return nil
+		}
+		data := &types.StateAccount{
+			Nonce:      acc.Nonce,
+			Balance:    acc.Balance,
+			BalancePpt: acc.BalancePpt,
+			CodeHash:   acc.CodeHash,
+			Root:       common.BytesToHash(acc.Root),
+		}
+		if len(data.CodeHash) == 0 {
+			data.CodeHash = emptyCodeHash
+		}
+		if data.Root == (common.Hash{}) {
+			data.Root = emptyRoot
+		}
+		return newObject(s, addr, data)
+	}
+	return nil
+}
+
 // getDeletedStateObject is similar to getStateObject, but instead of returning
 // nil for a deleted state object, it returns the actual object with the deleted
 // flag set. This is needed by the state journal to revert to the correct s-
@@ -566,7 +680,7 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 	var data *types.StateAccount
 	if s.snap != nil {
 		start := time.Now()
-		acc, err := s.snap.Account(crypto.HashData(s.hasher, addr.Bytes()))
+		acc, err := s.snap.Account(crypto.HashDataWithCache(s.hasher, addr.Bytes()))
 		if metrics.EnabledExpensive {
 			s.SnapshotAccountReads += time.Since(start)
 		}
@@ -575,10 +689,11 @@ func (s *StateDB) getDeletedStateObject(addr common.Address) *stateObject {
 				return nil
 			}
 			data = &types.StateAccount{
-				Nonce:    acc.Nonce,
-				Balance:  acc.Balance,
-				CodeHash: acc.CodeHash,
-				Root:     common.BytesToHash(acc.Root),
+				Nonce:      acc.Nonce,
+				Balance:    acc.Balance,
+				BalancePpt: acc.BalancePpt,
+				CodeHash:   acc.CodeHash,
+				Root:       common.BytesToHash(acc.Root),
 			}
 			if len(data.CodeHash) == 0 {
 				data.CodeHash = types.EmptyCodeHash.Bytes()
@@ -679,6 +794,7 @@ func (s *StateDB) CreateAccount(addr common.Address) {
 	newObj, prev := s.createObject(addr)
 	if prev != nil {
 		newObj.setBalance(prev.data.Balance)
+		newObj.setBalancePPT(prev.data.BalancePpt)
 	}
 }
 
@@ -892,11 +1008,22 @@ func (s *StateDB) IntermediateRoot(deleteEmptyObjects bool) common.Hash {
 	// the account prefetcher. Instead, let's process all the storage updates
 	// first, giving the account prefetches just a few more milliseconds of time
 	// to pull useful data from disk.
+	// var wg sync.WaitGroup
 	for addr := range s.stateObjectsPending {
 		if obj := s.stateObjects[addr]; !obj.deleted {
 			obj.updateRoot()
 		}
 	}
+
+	// Track the amount of time wasted on updating the storage trie and getting rlp of the account
+	// var start time.Time
+	// if metrics.EnabledExpensive {
+	// 	start = time.Now()
+	// }
+	// wg.Wait()
+	// if metrics.EnabledExpensive {
+	// 	s.StorageUpdates += time.Since(start)
+	// }
 	// Now we're about to start to write changes to the trie. The trie is so far
 	// _untouched_. We can check with the prefetcher, if it can give us a trie
 	// which has the same root, but also has some content loaded into it.
@@ -1385,6 +1512,36 @@ func (s *StateDB) convertAccountSet(set map[common.Address]*types.StateAccount) 
 	}
 	return ret
 }
+
+// Erase sets the code/storage-root to empty for the given account.
+// This's a governance action.
+//
+// The account is still available, and with it's balance unchanged.
+func (s *StateDB) Erase(addr common.Address) bool {
+	stateObject := s.getStateObject(addr)
+	if stateObject == nil {
+		return false
+	}
+	stateObject.erase()
+
+	return true
+}
+
+// concurrency safe
+// func (s *StateDB) preUpdateStateObject(obj *stateObject) {
+// 	obj.updateTrieConcurrencySafe()
+
+// 	// If nothing changed, don't bother with hashing anything
+// 	if obj.trie != nil {
+// 		obj.data.Root = obj.trie.Hash()
+// 	}
+
+// 	// Encode the account and update the account trie
+// 	obj.accountRLP, obj.rlpErr = rlp.EncodeToBytes(obj)
+// 	if s.snap != nil {
+// 		obj.slimAccountRLP = types.SlimAccountRLP(obj.data)
+// 	}
+// }
 
 // copySet returns a deep-copied set.
 func copySet[k comparable](set map[k][]byte) map[k][]byte {

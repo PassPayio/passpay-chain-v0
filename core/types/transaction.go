@@ -41,6 +41,7 @@ var (
 	errInvalidYParity       = errors.New("'yParity' field must be 0 or 1")
 	errVYParityMismatch     = errors.New("'v' and 'yParity' fields do not match")
 	errVYParityMissing      = errors.New("missing 'yParity' or 'v' field in transaction")
+	ErrAddressDenied        = errors.New("address denied")
 )
 
 // Transaction types.
@@ -302,6 +303,8 @@ func (tx *Transaction) Value() *big.Int { return new(big.Int).Set(tx.inner.value
 
 // Nonce returns the sender account nonce of the transaction.
 func (tx *Transaction) Nonce() uint64 { return tx.inner.nonce() }
+
+func (tx *Transaction) LocalSeenTime() time.Time { return tx.time }
 
 // To returns the recipient address of the transaction.
 // For contract-creation transactions, To returns nil.

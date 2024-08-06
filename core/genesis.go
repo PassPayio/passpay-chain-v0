@@ -135,6 +135,9 @@ func hashAlloc(ga *types.GenesisAlloc, isVerkle bool) (common.Hash, error) {
 		if account.Balance != nil {
 			statedb.AddBalance(addr, uint256.MustFromBig(account.Balance))
 		}
+		if account.BalancePpt != nil {
+			statedb.AddBalancePPT(addr, uint256.MustFromBig(account.BalancePpt))
+		}
 		statedb.SetCode(addr, account.Code)
 		statedb.SetNonce(addr, account.Nonce)
 		for key, value := range account.Storage {
@@ -373,7 +376,7 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 	case ghash == params.GoerliGenesisHash:
 		return params.GoerliChainConfig
 	default:
-		return params.AllEthashProtocolChanges
+		return params.AllPposProtocolChanges
 	}
 }
 
@@ -409,7 +412,7 @@ func (g *Genesis) ToBlock() *types.Block {
 	if g.Difficulty == nil && g.Mixhash == (common.Hash{}) {
 		head.Difficulty = params.GenesisDifficulty
 	}
-	if g.Config != nil && g.Config.IsLondon(common.Big0) {
+	if g.Config != nil && g.Config.IsLondon(common.Big0.ToBig()) {
 		if g.BaseFee != nil {
 			head.BaseFee = g.BaseFee
 		} else {
@@ -566,9 +569,10 @@ func DeveloperGenesisBlock(gasLimit uint64, faucet *common.Address) *Genesis {
 
 func decodePrealloc(data string) types.GenesisAlloc {
 	var p []struct {
-		Addr    *big.Int
-		Balance *big.Int
-		Misc    *struct {
+		Addr       *big.Int
+		Balance    *big.Int
+		BalancePpt *big.Int
+		Misc       *struct {
 			Nonce uint64
 			Code  []byte
 			Slots []struct {
@@ -582,7 +586,7 @@ func decodePrealloc(data string) types.GenesisAlloc {
 	}
 	ga := make(types.GenesisAlloc, len(p))
 	for _, account := range p {
-		acc := types.Account{Balance: account.Balance}
+		acc := types.Account{Balance: account.Balance, BalancePpt: account.BalancePpt}
 		if account.Misc != nil {
 			acc.Nonce = account.Misc.Nonce
 			acc.Code = account.Misc.Code

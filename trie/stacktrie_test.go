@@ -365,7 +365,7 @@ func TestStacktrieNotModifyValues(t *testing.T) {
 		st.Update(key.Bytes(), value)
 		vals = append(vals, value)
 		keyB = keyB.Add(keyB, keyDelta)
-		keyDelta.Add(keyDelta, common.Big1)
+		keyDelta.Add(keyDelta, common.Big1.ToBig())
 	}
 	st.Hash()
 	for i := 0; i < 1000; i++ {

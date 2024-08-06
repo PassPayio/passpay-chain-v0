@@ -26,7 +26,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/forkid"
 	"github.com/ethereum/go-ethereum/core/rawdb"
@@ -210,11 +209,11 @@ func newHandler(config *handlerConfig) (*handler, error) {
 		// the chain has finished the transition or not, the PoS headers
 		// should only come from the trusted consensus layer instead of
 		// p2p network.
-		if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
-			if beacon.IsPoSHeader(header) {
-				return errors.New("unexpected post-merge header")
-			}
-		}
+		// if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
+		// 	if beacon.IsPoSHeader(header) {
+		// 		return errors.New("unexpected post-merge header")
+		// 	}
+		// }
 		return h.chain.Engine().VerifyHeader(h.chain, header)
 	}
 	heighter := func() uint64 {
@@ -561,11 +560,11 @@ func (h *handler) BroadcastBlock(block *types.Block, propagate bool) {
 		return
 	}
 	// Disable the block propagation if it's the post-merge block.
-	if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
-		if beacon.IsPoSHeader(block.Header()) {
-			return
-		}
-	}
+	// if beacon, ok := h.chain.Engine().(*beacon.Beacon); ok {
+	// 	if beacon.IsPoSHeader(block.Header()) {
+	// 		return
+	// 	}
+	// }
 	hash := block.Hash()
 	peers := h.peers.peersWithoutBlock(hash)
 

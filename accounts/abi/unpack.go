@@ -29,9 +29,9 @@ import (
 
 var (
 	// MaxUint256 is the maximum value that can be represented by a uint256.
-	MaxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 256), common.Big1)
+	MaxUint256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1.ToBig(), 256), common.Big1.ToBig())
 	// MaxInt256 is the maximum value that can be represented by a int256.
-	MaxInt256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1, 255), common.Big1)
+	MaxInt256 = new(big.Int).Sub(new(big.Int).Lsh(common.Big1.ToBig(), 255), common.Big1.ToBig())
 )
 
 // ReadInteger reads the integer based on its kind and returns the appropriate value.
@@ -72,7 +72,7 @@ func ReadInteger(typ Type, b []byte) (interface{}, error) {
 	// A number is > max int256 if the bit at position 255 is set.
 	if ret.Bit(255) == 1 {
 		ret.Add(MaxUint256, new(big.Int).Neg(ret))
-		ret.Add(ret, common.Big1)
+		ret.Add(ret, common.Big1.ToBig())
 		ret.Neg(ret)
 	}
 	i64, isi64 := ret.Int64(), ret.IsInt64()
@@ -287,7 +287,7 @@ func toGoType(index int, t Type, output []byte) (interface{}, error) {
 // lengthPrefixPointsTo interprets a 32 byte slice as an offset and then determines which indices to look to decode the type.
 func lengthPrefixPointsTo(index int, output []byte) (start int, length int, err error) {
 	bigOffsetEnd := new(big.Int).SetBytes(output[index : index+32])
-	bigOffsetEnd.Add(bigOffsetEnd, common.Big32)
+	bigOffsetEnd.Add(bigOffsetEnd, common.Big32.ToBig())
 	outputLength := big.NewInt(int64(len(output)))
 
 	if bigOffsetEnd.Cmp(outputLength) > 0 {

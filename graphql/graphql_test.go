@@ -378,7 +378,7 @@ func TestWithdrawals(t *testing.T) {
 		genesis = &core.Genesis{
 			Config:     params.AllEthashProtocolChanges,
 			GasLimit:   11500000,
-			Difficulty: common.Big1,
+			Difficulty: common.Big1.ToBig(),
 			Alloc: types.GenesisAlloc{
 				addr: {Balance: big.NewInt(params.Ether)},
 			},
@@ -458,7 +458,7 @@ func newGQLService(t *testing.T, stack *node.Node, shanghai bool, gspec *core.Ge
 		engine = beacon.NewFaker()
 		chainCfg := gspec.Config
 		chainCfg.TerminalTotalDifficultyPassed = true
-		chainCfg.TerminalTotalDifficulty = common.Big0
+		chainCfg.TerminalTotalDifficulty = common.Big0.ToBig()
 		// GenerateChain will increment timestamps by 10.
 		// Shanghai upgrade at block 1.
 		shanghaiTime := uint64(5)

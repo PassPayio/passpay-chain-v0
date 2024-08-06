@@ -501,11 +501,11 @@ transaction gets propagated.`)
 	inner := &types.DynamicFeeTx{
 		ChainID:   s.chain.config.ChainID,
 		Nonce:     nonce,
-		GasTipCap: common.Big1,
+		GasTipCap: common.Big1.ToBig(),
 		GasFeeCap: s.chain.Head().BaseFee(),
 		Gas:       30000,
 		To:        &common.Address{0xaa},
-		Value:     common.Big1,
+		Value:     common.Big1.ToBig(),
 	}
 	tx, err := s.chain.SignTx(from, types.NewTx(inner))
 	if err != nil {
@@ -530,7 +530,7 @@ does not propagate them.`)
 	inner := &types.DynamicFeeTx{
 		ChainID:   s.chain.config.ChainID,
 		Nonce:     nonce,
-		GasTipCap: common.Big1,
+		GasTipCap: common.Big1.ToBig(),
 		GasFeeCap: s.chain.Head().BaseFee(),
 		Gas:       30000,
 		To:        &common.Address{0xaa},
@@ -549,14 +549,14 @@ does not propagate them.`)
 		{
 			ChainID:   s.chain.config.ChainID,
 			Nonce:     nonce - 1,
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Gas:       100000,
 		},
 		// Value exceeds balance
 		{
 			Nonce:     nonce,
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Gas:       100000,
 			Value:     s.chain.Balance(from),
@@ -564,14 +564,14 @@ does not propagate them.`)
 		// Gas limit too low
 		{
 			Nonce:     nonce,
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Gas:       1337,
 		},
 		// Code size too large
 		{
 			Nonce:     nonce,
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Data:      randBuf(50),
 			Gas:       1_000_000,
@@ -579,7 +579,7 @@ does not propagate them.`)
 		// Data too large
 		{
 			Nonce:     nonce,
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			To:        &common.Address{0xaa},
 			Data:      randBuf(128),
@@ -621,7 +621,7 @@ on another peer connection using GetPooledTransactions.`)
 		inner := &types.DynamicFeeTx{
 			ChainID:   s.chain.config.ChainID,
 			Nonce:     nonce + uint64(i),
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Gas:       75000,
 		}
@@ -693,7 +693,7 @@ the transactions using a GetPooledTransactions request.`)
 		inner := &types.DynamicFeeTx{
 			ChainID:   s.chain.config.ChainID,
 			Nonce:     nonce + uint64(i),
-			GasTipCap: common.Big1,
+			GasTipCap: common.Big1.ToBig(),
 			GasFeeCap: s.chain.Head().BaseFee(),
 			Gas:       75000,
 		}

@@ -67,7 +67,7 @@ func Estimate(ctx context.Context, call *core.Message, opts *Options, gasCap uin
 	} else if call.GasPrice != nil {
 		feeCap = call.GasPrice
 	} else {
-		feeCap = common.Big0
+		feeCap = common.Big0.ToBig()
 	}
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {

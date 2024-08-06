@@ -27,6 +27,10 @@ import (
 	"github.com/holiman/uint256"
 )
 
+// emptyCodeHash is used by create to ensure deployment is disallowed to already
+// deployed contract addresses (relevant after the account abstraction).
+var emptyCodeHash = crypto.Keccak256Hash(nil)
+
 type (
 	// CanTransferFunc is the signature of a transfer guard function
 	CanTransferFunc func(StateDB, common.Address, *uint256.Int) bool
@@ -35,6 +39,8 @@ type (
 	// GetHashFunc returns the n'th block hash in the blockchain
 	// and is used by the BLOCKHASH EVM op code.
 	GetHashFunc func(uint64) common.Hash
+	// CanCreateFunc is the signature of a contract creation guard function
+	CanCreateFunc func(StateDB, common.Address, *uint256.Int) bool
 )
 
 func (evm *EVM) precompile(addr common.Address) (PrecompiledContract, bool) {
@@ -65,6 +71,10 @@ type BlockContext struct {
 	Transfer TransferFunc
 	// GetHash returns the hash corresponding to n
 	GetHash GetHashFunc
+	// CanCreate returns whether a given address can create a new contract
+	CanCreate CanCreateFunc
+	// ExtraValidator do some extra validation to a message during it's execution
+	ExtraValidator types.EvmExtraValidator
 
 	// Block information
 	Coinbase    common.Address // Provides information for COINBASE
@@ -181,6 +191,15 @@ func (evm *EVM) Call(caller ContractRef, addr common.Address, input []byte, gas 
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
+
+	// Check whether the involved addresses are denied if needed
+	if evm.Context.ExtraValidator != nil && evm.depth > 0 {
+		if evm.Context.ExtraValidator.IsAddressDenied(caller.Address(), common.CheckFrom) ||
+			evm.Context.ExtraValidator.IsAddressDenied(addr, common.CheckTo) {
+			return nil, gas, types.ErrAddressDenied
+		}
+	}
+
 	// Fail if we're trying to transfer more than the available balance
 	if !value.IsZero() && !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
@@ -275,6 +294,15 @@ func (evm *EVM) CallCode(caller ContractRef, addr common.Address, input []byte, 
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, gas, ErrInsufficientBalance
 	}
+
+	// Check whether the involved addresses are denied if needed
+	if evm.Context.ExtraValidator != nil {
+		if evm.Context.ExtraValidator.IsAddressDenied(caller.Address(), common.CheckFrom) ||
+			evm.Context.ExtraValidator.IsAddressDenied(addr, common.CheckTo) {
+			return nil, gas, types.ErrAddressDenied
+		}
+	}
+
 	var snapshot = evm.StateDB.Snapshot()
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
@@ -316,6 +344,15 @@ func (evm *EVM) DelegateCall(caller ContractRef, addr common.Address, input []by
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
+
+	// Check whether the involved addresses are denied if needed
+	if evm.Context.ExtraValidator != nil {
+		if evm.Context.ExtraValidator.IsAddressDenied(caller.Address(), common.CheckFrom) ||
+			evm.Context.ExtraValidator.IsAddressDenied(addr, common.CheckTo) {
+			return nil, gas, types.ErrAddressDenied
+		}
+	}
+
 	var snapshot = evm.StateDB.Snapshot()
 
 	// Invoke tracer hooks that signal entering/exiting a call frame
@@ -359,6 +396,15 @@ func (evm *EVM) StaticCall(caller ContractRef, addr common.Address, input []byte
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, gas, ErrDepth
 	}
+
+	// Check whether the involved addresses are denied if needed
+	if evm.Context.ExtraValidator != nil {
+		if evm.Context.ExtraValidator.IsAddressDenied(caller.Address(), common.CheckFrom) ||
+			evm.Context.ExtraValidator.IsAddressDenied(addr, common.CheckTo) {
+			return nil, gas, types.ErrAddressDenied
+		}
+	}
+
 	// We take a snapshot here. This is a bit counter-intuitive, and could probably be skipped.
 	// However, even a staticcall is considered a 'touch'. On mainnet, static calls were introduced
 	// after all empty accounts were deleted, so this is not required. However, if we omit this,
@@ -424,6 +470,13 @@ func (evm *EVM) create(caller ContractRef, codeAndHash *codeAndHash, gas uint64,
 	// limit.
 	if evm.depth > int(params.CallCreateDepth) {
 		return nil, common.Address{}, gas, ErrDepth
+	}
+	// check developer if needed
+	if evm.Context.CanCreate != nil {
+		blockNumber, _ := uint256.FromBig(evm.Context.BlockNumber)
+		if !evm.Context.CanCreate(evm.StateDB, caller.Address(), blockNumber) {
+			return nil, common.Address{}, gas, ErrUnauthorizedDeveloper
+		}
 	}
 	if !evm.Context.CanTransfer(evm.StateDB, caller.Address(), value) {
 		return nil, common.Address{}, gas, ErrInsufficientBalance

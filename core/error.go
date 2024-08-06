@@ -110,4 +110,12 @@ var (
 
 	// ErrBlobTxCreate is returned if a blob transaction has no explicit to field.
 	ErrBlobTxCreate = errors.New("blob transaction of type create")
+
+	// ErrInsufficientFunds is returned if the total cost of executing a transaction
+	// is higher than the balance of the meta fee address's account.
+	ErrInsufficientMetaFunds = errors.New("meta address insufficient funds for gas * price + value")
+
+	ErrMetaTrans = errors.New("ErrMetaTrans")
+
+	ErrUnauthorizedDeveloper = errors.New("unauthorized developer")
 )
